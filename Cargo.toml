@@ -1,0 +1,8 @@
+[package]
+authors = ["Tad Hardesty <tad@platymuus.com>"]
+name = "opus"
+version = "0.1.0"
+
+[dependencies]
+opus-sys = "0.1.2"
+libc = "0.1"
