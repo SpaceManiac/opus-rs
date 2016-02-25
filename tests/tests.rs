@@ -64,3 +64,34 @@ fn encode_bad_buffer() {
 		Err(err) => assert_eq!(err.code(), opus::ErrorCode::BadArg),
 	}
 }
+
+#[test]
+fn repacketizer() {
+	let mut rp = opus::Repacketizer::new().unwrap();
+
+	for _ in 0..2 {
+		let packets = &[
+			&[249, 255, 254, 255, 254][..],
+			&[248, 255, 254][..],
+		];
+
+		let mut state = rp.begin();
+		for &packet in packets {
+			state.cat(packet).unwrap();
+		}
+
+		let mut out = [0; 256];
+		let len = state.out(&mut out).unwrap();
+		assert_eq!(&out[..len], &[251, 3, 255, 254, 255, 254, 255, 254]);
+	}
+
+	{
+		let packet = [248, 255, 254];
+		let state = rp.begin().cat_move(&packet).unwrap();
+		let packet = [249, 255, 254, 255, 254];
+		let state = state.cat_move(&packet).unwrap();
+		let mut out = [0; 256];
+		let len = {state}.out(&mut out).unwrap();
+		assert_eq!(&out[..len], &[251, 3, 255, 254, 255, 254, 255, 254]);
+	}
+}

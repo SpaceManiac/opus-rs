@@ -8,8 +8,9 @@ extern crate opus_sys as ffi;
 extern crate libc;
 
 use std::ffi::CStr;
+use std::marker::PhantomData;
 
-use libc::{c_int};
+use libc::c_int;
 
 // ============================================================================
 // Constants
@@ -258,14 +259,7 @@ pub mod packet {
 		}
 		let bandwidth = unsafe { ffi::opus_packet_get_bandwidth(packet.as_ptr()) };
 		try!(check("opus_packet_get_bandwidth", bandwidth));
-		match bandwidth {
-			1101 => Ok(Bandwidth::Narrowband),
-			1102 => Ok(Bandwidth::Mediumband),
-			1103 => Ok(Bandwidth::Wideband),
-			1104 => Ok(Bandwidth::Superwideband),
-			1105 => Ok(Bandwidth::Fullband),
-			_ => Err(Error::from_code("opus_packet_get_bandwidth", ffi::OPUS_BAD_ARG)),
-		}
+		Bandwidth::from_int(bandwidth).ok_or_else(|| Error::from_code("opus_packet_get_bandwidth", ffi::OPUS_BAD_ARG))
 	}
 
 	/// Get the number of channels from an Opus packet.
@@ -389,8 +383,6 @@ impl SoftClip {
 // ============================================================================
 // Repacketizer
 
-// TODO: fix soundness hole by holding a borrow to the input packets
-
 /// A repacketizer used to merge together or split apart multiple Opus packets.
 pub struct Repacketizer {
 	ptr: *mut ffi::OpusRepacketizer,
@@ -407,29 +399,54 @@ impl Repacketizer {
 		}
 	}
 
-	/// Reset the repacketizer to its initial state.
-	pub fn reset(&mut self) {
+	/// Begin using the repacketizer.
+	pub fn begin<'rp, 'buf>(&'rp mut self) -> RepacketizerState<'rp, 'buf> {
 		unsafe { ffi::opus_repacketizer_init(self.ptr); }
+		RepacketizerState { rp: self, phantom: PhantomData }
+	}
+}
+
+impl Drop for Repacketizer {
+	fn drop(&mut self) {
+		unsafe { ffi::opus_repacketizer_destroy(self.ptr) }
+	}
+}
+
+/// An in-progress repacketization.
+pub struct RepacketizerState<'rp, 'buf> {
+	rp: &'rp mut Repacketizer,
+	phantom: PhantomData<&'buf [u8]>,
+}
+
+impl<'rp, 'buf> RepacketizerState<'rp, 'buf> {
+	/// Add a packet to the current repacketizer state.
+	pub fn cat(&mut self, packet: &'buf [u8]) -> Result<()> {
+		unsafe { self.cat_priv(packet) }
+	}
+
+	/// Add a packet to the current repacketizer state, moving it.
+	pub fn cat_move<'b2>(mut self, packet: &'b2 [u8]) -> Result<RepacketizerState<'rp, 'b2>> where 'buf: 'b2 {
+		try!(unsafe { self.cat_priv(packet) });
+		Ok(self)
+	}
+
+	unsafe fn cat_priv(&mut self, packet: &[u8]) -> Result<()> {
+		let result = ffi::opus_repacketizer_cat(self.rp.ptr,
+			packet.as_ptr(), packet.len() as c_int);
+		check("opus_repacketizer_cat", result)
 	}
 
 	/// Get the total number of frames contained in packet data submitted so
-	/// far via `cat` since the last call to `reset`.
+	/// far via `cat`.
 	pub fn get_nb_frames(&mut self) -> usize {
-		unsafe { ffi::opus_repacketizer_get_nb_frames(self.ptr) as usize }
-	}
-
-	/// Add a packet to the current repacketizer state.
-	pub fn cat(&mut self, packet: &[u8]) -> Result<()> {
-		let result = unsafe { ffi::opus_repacketizer_cat(self.ptr,
-			packet.as_ptr(), packet.len() as c_int) };
-		check("opus_repacketizer_cat", result)
+		unsafe { ffi::opus_repacketizer_get_nb_frames(self.rp.ptr) as usize }
 	}
 
 	/// Construct a new packet from data previously submitted via `cat`.
 	///
 	/// All previously submitted frames are used.
 	pub fn out(&mut self, buffer: &mut [u8]) -> Result<usize> {
-		let result = unsafe { ffi::opus_repacketizer_out(self.ptr,
+		let result = unsafe { ffi::opus_repacketizer_out(self.rp.ptr,
 			buffer.as_mut_ptr(), buffer.len() as c_int) };
 		try!(check("opus_repacketizer_out", result));
 		Ok(result as usize)
@@ -440,17 +457,11 @@ impl Repacketizer {
 	///
 	/// The `end` index should not exceed the value of `get_nb_frames()`.
 	pub fn out_range(&mut self, begin: usize, end: usize, buffer: &mut [u8]) -> Result<usize> {
-		let result = unsafe { ffi::opus_repacketizer_out_range(self.ptr,
+		let result = unsafe { ffi::opus_repacketizer_out_range(self.rp.ptr,
 			begin as c_int, end as c_int,
 			buffer.as_mut_ptr(), buffer.len() as c_int) };
 		try!(check("opus_repacketizer_out_range", result));
 		Ok(result as usize)
-	}
-}
-
-impl Drop for Repacketizer {
-	fn drop(&mut self) {
-		unsafe { ffi::opus_repacketizer_destroy(self.ptr) }
 	}
 }
 
