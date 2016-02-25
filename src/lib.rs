@@ -1,11 +1,15 @@
+//! High-level bindings for libopus.
+//!
+//! Only brief descriptions are included here. For detailed information, consult
+//! the [libopus documentation](https://opus-codec.org/docs/opus_api-1.1.2/).
+#![warn(missing_docs)]
+
 extern crate opus_sys as ffi;
 extern crate libc;
 
 use std::ffi::CStr;
 
 use libc::{c_int};
-
-// TODO: Documentation
 
 // ============================================================================
 // Constants
@@ -16,40 +20,79 @@ const OPUS_GET_FINAL_RANGE: c_int = 4031; // *uint
 const OPUS_GET_BANDWIDTH: c_int = 4009; // *int
 const OPUS_GET_SAMPLE_RATE: c_int = 4029; // *int
 
+/// The possible coding modes for the codec.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum CodingMode {
+	/// Best for most VoIP/videoconference applications where listening quality and intelligibility matter most.
 	Voip = 2048,
+	/// Best for broadcast/high-fidelity application where the decoded audio should be as close as possible to the input.
 	Audio = 2049,
+	/// Only use when lowest-achievable latency is what matters most.
 	LowDelay = 2051,
 }
 
+/// The available channel setings.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum Channels {
-	Stereo = 1,
+	/// One channel.
 	Mono = 2,
+	/// Two channels, left and right.
+	Stereo = 1,
 }
 
+/// The available bandwidth level settings.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum Bandwidth {
+	/// Auto/default setting.
+	Auto = -1000,
+	/// 4kHz bandpass.
 	Narrowband = 1101,
+	/// 6kHz bandpass.
 	Mediumband = 1102,
+	/// 8kHz bandpass.
 	Wideband = 1103,
+	/// 12kHz bandpass.
 	Superwideband = 1104,
+	/// 20kHz bandpass.
 	Fullband = 1105,
 }
 
+impl Bandwidth {
+	fn from_int(value: i32) -> Option<Bandwidth> {
+		Some(match value {
+			-1000 => Bandwidth::Auto,
+			1101 => Bandwidth::Narrowband,
+			1102 => Bandwidth::Mediumband,
+			1103 => Bandwidth::Wideband,
+			1104 => Bandwidth::Superwideband,
+			1105 => Bandwidth::Fullband,
+			_ => return None,
+		})
+	}
+}
+
+/// Possible error codes.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum ErrorCode {
+	/// One or more invalid/out of range arguments.
 	BadArg = -1,
+	/// Not enough bytes allocated in the buffer.
 	BufferTooSmall = -2,
+	/// An internal error was detected.
 	InternalError = -3,
+	/// The compressed data passed is corrupted.
 	InvalidPacket = -4,
+	/// Invalid/unsupported request number.
 	Unimplemented = -5,
+	/// An encoder or decoder structure is invalid or already freed.
 	InvalidState = -6,
+	/// Memory allocation has failed.
 	AllocFail = -7,
+	/// An unknown failure.
 	Unknown = -8,
 }
 
+/// Get the libopus version string.
 pub fn version() -> &'static str {
 	// verison string should always be ASCII
 	unsafe { CStr::from_ptr(ffi::opus_get_version_string()) }.to_str().unwrap()
@@ -58,12 +101,14 @@ pub fn version() -> &'static str {
 // ============================================================================
 // Encoder
 
+/// An Opus encoder with associated state.
 pub struct Encoder {
 	ptr: *mut ffi::OpusEncoder,
 	channels: Channels,
 }
 
 impl Encoder {
+	/// Create and initialize an encoder.
 	pub fn new(sample_rate: u32, channels: Channels, mode: CodingMode) -> Result<Encoder> {
 		let mut error = 0;
 		let ptr = unsafe { ffi::opus_encoder_create(
@@ -78,6 +123,7 @@ impl Encoder {
 		}
 	}
 
+	/// Encode an Opus frame.
 	pub fn encode(&mut self, input: &[i16], output: &mut [u8]) -> Result<usize> {
 		let len = unsafe { ffi::opus_encode(self.ptr,
 			input.as_ptr(), input.len() as c_int / self.channels as c_int,
@@ -86,6 +132,7 @@ impl Encoder {
 		Ok(len as usize)
 	}
 
+	/// Encode an Opus frame from floating point input.
 	pub fn encode_float(&mut self, input: &[f32], output: &mut [u8]) -> Result<usize> {
 		let len = unsafe { ffi::opus_encode_float(self.ptr,
 			input.as_ptr(), input.len() as c_int / self.channels as c_int,
@@ -94,10 +141,12 @@ impl Encoder {
 		Ok(len as usize)
 	}
 
+	/// Reset the codec state to be equivalent to a freshly initialized state.
 	pub fn reset_state(&mut self) -> Result<()> {
 		check("opus_encoder_ctl(OPUS_RESET_STATE)", unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_RESET_STATE) })
 	}
 
+	/// Get the final range of the codec's entropy coder.
 	pub fn get_final_range(&mut self) -> Result<u32> {
 		let mut value = 0;
 		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_FINAL_RANGE, &mut value) };
@@ -105,18 +154,20 @@ impl Encoder {
 		Ok(value)
 	}
 
-	pub fn get_bandwidth(&mut self) -> Result<i32> {
+	/// Get the encoder's configured bandpass.
+	pub fn get_bandwidth(&mut self) -> Result<Bandwidth> {
 		let mut value = 0;
 		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_BANDWIDTH, &mut value) };
 		try!(check("opus_encoder_ctl(OPUS_GET_BANDWIDTH)", result));
-		Ok(value)
+		Bandwidth::from_int(result).ok_or_else(|| Error::from_code("opus_encoder_ctl(OPUS_GET_BANDWIDTH)", ffi::OPUS_BAD_ARG))
 	}
 
-	pub fn get_sample_rate(&mut self) -> Result<i32> {
+	/// Get the samping rate the encoder was intialized with.
+	pub fn get_sample_rate(&mut self) -> Result<u32> {
 		let mut value = 0;
 		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_SAMPLE_RATE, &mut value) };
 		try!(check("opus_encoder_ctl(OPUS_GET_SAMPLE_RATE)", result));
-		Ok(value)
+		Ok(value as u32)
 	}
 
 	// TODO: Encoder-specific CTLs
@@ -131,12 +182,14 @@ impl Drop for Encoder {
 // ============================================================================
 // Decoder
 
+/// An Opus decoder with associated state.
 pub struct Decoder {
 	ptr: *mut ffi::OpusDecoder,
 	channels: Channels,
 }
 
 impl Decoder {
+	/// Create and initialize a decoder.
 	pub fn new(sample_rate: u32, channels: Channels) -> Result<Decoder> {
 		let mut error = 0;
 		let ptr = unsafe { ffi::opus_decoder_create(
@@ -150,7 +203,7 @@ impl Decoder {
 		}
 	}
 
-	// TODO: support null inputs ("packet loss")
+	/// Decode an Opus packet.
 	pub fn decode(&mut self, input: &[u8], output: &mut [i16], fec: bool) -> Result<usize> {
 		let len = unsafe { ffi::opus_decode(self.ptr,
 			input.as_ptr(), input.len() as c_int,
@@ -160,6 +213,7 @@ impl Decoder {
 		Ok(len as usize)
 	}
 
+	/// Decode an Opus packet with floating point output.
 	pub fn decode_float(&mut self, input: &[u8], output: &mut [f32], fec: bool) -> Result<usize> {
 		let len = unsafe { ffi::opus_decode_float(self.ptr,
 			input.as_ptr(), input.len() as c_int,
@@ -169,6 +223,7 @@ impl Decoder {
 		Ok(len as usize)
 	}
 
+	/// Get the number of samples of an Opus packet.
 	pub fn get_nb_samples(&self, packet: &[u8]) -> Result<usize> {
 		let len = unsafe { ffi::opus_decoder_get_nb_samples(self.ptr,
 			packet.as_ptr(), packet.len() as i32) };
@@ -189,12 +244,14 @@ impl Drop for Decoder {
 // ============================================================================
 // Packet Analysis
 
+/// Analyze raw Opus packets.
 pub mod packet {
 	use super::*;
 	use super::{ffi, check};
 	use std::{ptr, slice};
 	use libc::c_int;
 
+	/// Get the bandwidth of an Opus packet.
 	pub fn get_bandwidth(packet: &[u8]) -> Result<Bandwidth> {
 		if packet.len() < 1 {
 			return Err(Error::from_code("opus_packet_get_bandwidth", ffi::OPUS_BAD_ARG))
@@ -211,6 +268,7 @@ pub mod packet {
 		}
 	}
 
+	/// Get the number of channels from an Opus packet.
 	pub fn get_nb_channels(packet: &[u8]) -> Result<Channels> {
 		if packet.len() < 1 {
 			return Err(Error::from_code("opus_packet_get_nb_channels", ffi::OPUS_BAD_ARG))
@@ -224,12 +282,14 @@ pub mod packet {
 		}
 	}
 
+	/// Get the number of frames in an Opus packet.
 	pub fn get_nb_frames(packet: &[u8]) -> Result<usize> {
 		let frames = unsafe { ffi::opus_packet_get_nb_frames(packet.as_ptr(), packet.len() as c_int) };
 		try!(check("opus_packet_get_nb_frames", frames));
 		Ok(frames as usize)
 	}
 
+	/// Get the number of samples of an Opus packet.
 	pub fn get_nb_samples(packet: &[u8], sample_rate: u32) -> Result<usize> {
 		let frames = unsafe { ffi::opus_packet_get_nb_samples(
 			packet.as_ptr(), packet.len() as c_int,
@@ -238,6 +298,7 @@ pub mod packet {
 		Ok(frames as usize)
 	}
 
+	/// Get the number of samples per frame from an Opus packet.
 	pub fn get_samples_per_frame(packet: &[u8], sample_rate: u32) -> Result<usize> {
 		if packet.len() < 1 {
 			return Err(Error::from_code("opus_packet_get_samples_per_frame", ffi::OPUS_BAD_ARG))
@@ -247,6 +308,7 @@ pub mod packet {
 		Ok(samples as usize)
 	}
 
+	/// Parse an Opus packet into one or more frames.
 	pub fn parse(packet: &[u8]) -> Result<Packet> {
 		let mut toc: u8 = 0;
 		let mut frames = [ptr::null(); 48];
@@ -270,18 +332,28 @@ pub mod packet {
 		})
 	}
 
+	/// A parsed Opus packet, retuned from `parse`.
 	pub struct Packet<'a> {
+		/// The TOC byte of the packet.
 		pub toc: u8,
+		/// The frames contained in the packet.
 		pub frames: Vec<&'a [u8]>,
+		/// The offset into the packet at which the payload is located.
 		pub payload_offset: usize,
 	}
 
+	/// Pad a given Opus packet to a larger size.
+	///
+	/// The packet will be extended from the first `prev_len` bytes of the
+	/// buffer into the rest of the available space.
 	pub fn pad(packet: &mut [u8], prev_len: usize) -> Result<usize> {
 		let result = unsafe { ffi::opus_packet_pad(packet.as_mut_ptr(), prev_len as c_int, packet.len() as c_int) };
 		try!(check("opus_packet_pad", result));
 		Ok(result as usize)
 	}
 
+	/// Remove all padding from a given Opus packet and rewrite the TOC sequence
+	/// to minimize space usage.
 	pub fn unpad(packet: &mut [u8]) -> Result<usize> {
 		let result = unsafe { ffi::opus_packet_unpad(packet.as_mut_ptr(), packet.len() as c_int) };
 		try!(check("opus_packet_unpad", result));
@@ -292,16 +364,19 @@ pub mod packet {
 // ============================================================================
 // Float Soft Clipping
 
+/// Soft-clipping to bring a float signal within the [-1,1] range.
 pub struct SoftClip {
 	channels: Channels,
 	memory: [f32; 2],
 }
 
 impl SoftClip {
+	/// Initialize a new soft-clipping state.
 	pub fn new(channels: Channels) -> SoftClip {
 		SoftClip { channels: channels, memory: [0.0; 2] }
 	}
 
+	/// Apply soft-clipping to a float signal.
 	pub fn apply(&mut self, signal: &mut [f32]) {
 		unsafe { ffi::opus_pcm_soft_clip(
 			signal.as_mut_ptr(),
@@ -314,11 +389,15 @@ impl SoftClip {
 // ============================================================================
 // Repacketizer
 
+// TODO: fix soundness hole by holding a borrow to the input packets
+
+/// A repacketizer used to merge together or split apart multiple Opus packets.
 pub struct Repacketizer {
 	ptr: *mut ffi::OpusRepacketizer,
 }
 
 impl Repacketizer {
+	/// Create and initialize a repacketizer.
 	pub fn new() -> Result<Repacketizer> {
 		let ptr = unsafe { ffi::opus_repacketizer_create() };
 		if ptr.is_null() {
@@ -328,20 +407,27 @@ impl Repacketizer {
 		}
 	}
 
+	/// Reset the repacketizer to its initial state.
 	pub fn reset(&mut self) {
 		unsafe { ffi::opus_repacketizer_init(self.ptr); }
 	}
 
+	/// Get the total number of frames contained in packet data submitted so
+	/// far via `cat` since the last call to `reset`.
 	pub fn get_nb_frames(&mut self) -> usize {
 		unsafe { ffi::opus_repacketizer_get_nb_frames(self.ptr) as usize }
 	}
 
+	/// Add a packet to the current repacketizer state.
 	pub fn cat(&mut self, packet: &[u8]) -> Result<()> {
 		let result = unsafe { ffi::opus_repacketizer_cat(self.ptr,
 			packet.as_ptr(), packet.len() as c_int) };
 		check("opus_repacketizer_cat", result)
 	}
 
+	/// Construct a new packet from data previously submitted via `cat`.
+	///
+	/// All previously submitted frames are used.
 	pub fn out(&mut self, buffer: &mut [u8]) -> Result<usize> {
 		let result = unsafe { ffi::opus_repacketizer_out(self.ptr,
 			buffer.as_mut_ptr(), buffer.len() as c_int) };
@@ -349,6 +435,10 @@ impl Repacketizer {
 		Ok(result as usize)
 	}
 
+	/// Construct a new packet from data previously submitted via `cat`, with
+	/// a manually specified subrange.
+	///
+	/// The `end` index should not exceed the value of `get_nb_frames()`.
 	pub fn out_range(&mut self, begin: usize, end: usize, buffer: &mut [u8]) -> Result<usize> {
 		let result = unsafe { ffi::opus_repacketizer_out_range(self.ptr,
 			begin as c_int, end as c_int,
@@ -370,8 +460,10 @@ impl Drop for Repacketizer {
 // ============================================================================
 // Error Handling
 
+/// Opus error Result alias.
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// An error generated by the Opus library.
 #[derive(Debug)]
 pub struct Error {
 	function: &'static str,
@@ -396,8 +488,11 @@ impl Error {
 		Error { function: what, description: description, code: code }
 	}
 
+	/// Get the name of the Opus function from which the error originated.
 	pub fn function(&self) -> &'static str { self.function }
+	/// Get a textual description of the error provided by Opus.
 	pub fn description(&self) -> &'static str { self.description }
+	/// Get the Opus error code of the error.
 	pub fn code(&self) -> ErrorCode { self.code }
 }
 
