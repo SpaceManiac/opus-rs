@@ -35,9 +35,9 @@ pub enum CodingMode {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum Channels {
 	/// One channel.
-	Mono = 2,
+	Mono = 1,
 	/// Two channels, left and right.
-	Stereo = 1,
+	Stereo = 2,
 }
 
 /// The available bandwidth level settings.

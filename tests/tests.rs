@@ -14,10 +14,10 @@ fn encode_mono() {
 	
 	let mut output = [0; 256];
 	let len = encoder.encode(&[0_i16; MONO_20MS], &mut output).unwrap();
-	assert_eq!(&output[..len], &[244, 255, 254]);
+	assert_eq!(&output[..len], &[248, 255, 254]);
 
 	let len = encoder.encode(&[0_i16; MONO_20MS], &mut output).unwrap();
-	assert_eq!(&output[..len], &[244, 255, 254]);
+	assert_eq!(&output[..len], &[248, 255, 254]);
 
 	let len = encoder.encode(&[1_i16; MONO_20MS], &mut output).unwrap();
 	assert!(len > 190 && len < 220);
@@ -32,10 +32,10 @@ fn encode_stereo() {
 
 	let mut output = [0; 512];
 	let len = encoder.encode(&[0_i16; 2 * MONO_20MS], &mut output).unwrap();
-	assert_eq!(&output[..len], &[249, 255, 254, 255, 254]);
+	assert_eq!(&output[..len], &[252, 255, 254]);
 
-	let len = encoder.encode(&[0_i16; 2 * MONO_20MS], &mut output).unwrap();
-	assert_eq!(&output[..len], &[249, 255, 254, 255, 254]);
+	let len = encoder.encode(&[0_i16; 4 * MONO_20MS], &mut output).unwrap();
+	assert_eq!(&output[..len], &[253, 255, 254, 255, 254]);
 
 	let len = encoder.encode(&[17_i16; 2 * MONO_20MS], &mut output).unwrap();
 	assert!(len > 240);
@@ -45,7 +45,7 @@ fn encode_stereo() {
 
 	// Very small buffer should still succeed
 	let len = encoder.encode(&[95_i16; 2 * MONO_20MS], &mut [0; 20]).unwrap();
-	assert!(len < 20);
+	assert!(len <= 20);
 }
 
 #[test]
