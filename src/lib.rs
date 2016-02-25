@@ -275,6 +275,18 @@ pub mod packet {
 		pub frames: Vec<&'a [u8]>,
 		pub payload_offset: usize,
 	}
+
+	pub fn pad(packet: &mut [u8], prev_len: usize) -> Result<usize> {
+		let result = unsafe { ffi::opus_packet_pad(packet.as_mut_ptr(), prev_len as c_int, packet.len() as c_int) };
+		try!(check("opus_packet_pad", result));
+		Ok(result as usize)
+	}
+
+	pub fn unpad(packet: &mut [u8]) -> Result<usize> {
+		let result = unsafe { ffi::opus_packet_unpad(packet.as_mut_ptr(), packet.len() as c_int) };
+		try!(check("opus_packet_unpad", result));
+		Ok(result as usize)
+	}
 }
 
 // ============================================================================
@@ -300,7 +312,57 @@ impl SoftClip {
 }
 
 // ============================================================================
-// TODO: Repacketizer
+// Repacketizer
+
+pub struct Repacketizer {
+	ptr: *mut ffi::OpusRepacketizer,
+}
+
+impl Repacketizer {
+	pub fn new() -> Result<Repacketizer> {
+		let ptr = unsafe { ffi::opus_repacketizer_create() };
+		if ptr.is_null() {
+			Err(Error::from_code("opus_repacketizer_create", ffi::OPUS_ALLOC_FAIL))
+		} else {
+			Ok(Repacketizer { ptr: ptr })
+		}
+	}
+
+	pub fn reset(&mut self) {
+		unsafe { ffi::opus_repacketizer_init(self.ptr); }
+	}
+
+	pub fn get_nb_frames(&mut self) -> usize {
+		unsafe { ffi::opus_repacketizer_get_nb_frames(self.ptr) as usize }
+	}
+
+	pub fn cat(&mut self, packet: &[u8]) -> Result<()> {
+		let result = unsafe { ffi::opus_repacketizer_cat(self.ptr,
+			packet.as_ptr(), packet.len() as c_int) };
+		check("opus_repacketizer_cat", result)
+	}
+
+	pub fn out(&mut self, buffer: &mut [u8]) -> Result<usize> {
+		let result = unsafe { ffi::opus_repacketizer_out(self.ptr,
+			buffer.as_mut_ptr(), buffer.len() as c_int) };
+		try!(check("opus_repacketizer_out", result));
+		Ok(result as usize)
+	}
+
+	pub fn out_range(&mut self, begin: usize, end: usize, buffer: &mut [u8]) -> Result<usize> {
+		let result = unsafe { ffi::opus_repacketizer_out_range(self.ptr,
+			begin as c_int, end as c_int,
+			buffer.as_mut_ptr(), buffer.len() as c_int) };
+		try!(check("opus_repacketizer_out_range", result));
+		Ok(result as usize)
+	}
+}
+
+impl Drop for Repacketizer {
+	fn drop(&mut self) {
+		unsafe { ffi::opus_repacketizer_destroy(self.ptr) }
+	}
+}
 
 // ============================================================================
 // TODO: Multistream API
