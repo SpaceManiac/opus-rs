@@ -68,30 +68,38 @@ fn encode_bad_buffer() {
 #[test]
 fn repacketizer() {
 	let mut rp = opus::Repacketizer::new().unwrap();
+	let mut out = [0; 256];
 
 	for _ in 0..2 {
-		let packets = &[
-			&[249, 255, 254, 255, 254][..],
-			&[248, 255, 254][..],
-		];
+		let packet1 = [249, 255, 254, 255, 254];
+		let packet2 = [248, 255, 254];
 
 		let mut state = rp.begin();
-		for &packet in packets {
-			state.cat(packet).unwrap();
-		}
-
-		let mut out = [0; 256];
+		state.cat(&packet1).unwrap();
+		state.cat(&packet2).unwrap();
 		let len = state.out(&mut out).unwrap();
 		assert_eq!(&out[..len], &[251, 3, 255, 254, 255, 254, 255, 254]);
 	}
-
-	{
+	for _ in 0..2 {
 		let packet = [248, 255, 254];
 		let state = rp.begin().cat_move(&packet).unwrap();
 		let packet = [249, 255, 254, 255, 254];
 		let state = state.cat_move(&packet).unwrap();
-		let mut out = [0; 256];
 		let len = {state}.out(&mut out).unwrap();
 		assert_eq!(&out[..len], &[251, 3, 255, 254, 255, 254, 255, 254]);
+	}
+	for _ in 0..2 {
+		let len = rp.combine(&[
+			&[249, 255, 254, 255, 254],
+			&[248, 255, 254],
+		], &mut out).unwrap();
+		assert_eq!(&out[..len], &[251, 3, 255, 254, 255, 254, 255, 254]);
+	}
+	for _ in 0..2 {
+		let len = rp.begin()
+			.cat_move(&[248, 255, 254]).unwrap()
+			.cat_move(&[248, 71, 71]).unwrap()
+			.out(&mut out).unwrap();
+		assert_eq!(&out[..len], &[249, 255, 254, 71, 71]);
 	}
 }

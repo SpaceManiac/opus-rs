@@ -399,6 +399,15 @@ impl Repacketizer {
 		}
 	}
 
+	/// Shortcut to combine several smaller packets into one larger one.
+	pub fn combine(&mut self, input: &[&[u8]], output: &mut [u8]) -> Result<usize> {
+		let mut state = self.begin();
+		for &packet in input {
+			try!(state.cat(packet));
+		}
+		state.out(output)
+	}
+
 	/// Begin using the repacketizer.
 	pub fn begin<'rp, 'buf>(&'rp mut self) -> RepacketizerState<'rp, 'buf> {
 		unsafe { ffi::opus_repacketizer_init(self.ptr); }
@@ -412,6 +421,12 @@ impl Drop for Repacketizer {
 	}
 }
 
+// To understand why these lifetime bounds are needed, imagine that the
+// repacketizer keeps an internal Vec<&'buf [u8]>, which is added to by cat()
+// and accessed by get_nb_frames(), out(), and out_range(). To prove that these
+// lifetime bounds are correct, a dummy implementation with the same signatures
+// but a real Vec<&'buf [u8]> rather than unsafe blocks may be substituted.
+
 /// An in-progress repacketization.
 pub struct RepacketizerState<'rp, 'buf> {
 	rp: &'rp mut Repacketizer,
@@ -421,19 +436,17 @@ pub struct RepacketizerState<'rp, 'buf> {
 impl<'rp, 'buf> RepacketizerState<'rp, 'buf> {
 	/// Add a packet to the current repacketizer state.
 	pub fn cat(&mut self, packet: &'buf [u8]) -> Result<()> {
-		unsafe { self.cat_priv(packet) }
+		let result = unsafe { ffi::opus_repacketizer_cat(self.rp.ptr,
+			packet.as_ptr(), packet.len() as c_int) };
+		check("opus_repacketizer_cat", result)
 	}
 
 	/// Add a packet to the current repacketizer state, moving it.
-	pub fn cat_move<'b2>(mut self, packet: &'b2 [u8]) -> Result<RepacketizerState<'rp, 'b2>> where 'buf: 'b2 {
-		try!(unsafe { self.cat_priv(packet) });
-		Ok(self)
-	}
-
-	unsafe fn cat_priv(&mut self, packet: &[u8]) -> Result<()> {
-		let result = ffi::opus_repacketizer_cat(self.rp.ptr,
-			packet.as_ptr(), packet.len() as c_int);
-		check("opus_repacketizer_cat", result)
+	#[inline]
+	pub fn cat_move<'b2>(self, packet: &'b2 [u8]) -> Result<RepacketizerState<'rp, 'b2>> where 'buf: 'b2 {
+		let mut shorter = self;
+		try!(shorter.cat(packet));
+		Ok(shorter)
 	}
 
 	/// Get the total number of frames contained in packet data submitted so
