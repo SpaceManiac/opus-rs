@@ -1,7 +1,14 @@
 [package]
-authors = ["Tad Hardesty <tad@platymuus.com>"]
 name = "opus"
 version = "0.1.0"
+authors = ["Tad Hardesty <tad@platymuus.com>"]
+
+description = "Safe Rust bindings for libopus"
+readme = "README.md"
+license = "MIT/Apache-2.0"
+keywords = ["opus", "codec", "voice", "sound", "audio"]
+
+repository = "https://github.com/SpaceManiac/opus-rs"
 
 [dependencies]
 opus-sys = "0.1.2"
