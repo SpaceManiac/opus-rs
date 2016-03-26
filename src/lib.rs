@@ -25,6 +25,8 @@ use libc::c_int;
 
 // Generic CTLs
 const OPUS_RESET_STATE: c_int = 4028; // void
+const OPUS_SET_BITRATE: c_int = 4002; // void
+const OPUS_GET_BITRATE: c_int = 4003; // *int
 const OPUS_GET_FINAL_RANGE: c_int = 4031; // *uint
 const OPUS_GET_BANDWIDTH: c_int = 4009; // *int
 const OPUS_GET_SAMPLE_RATE: c_int = 4029; // *int
@@ -177,6 +179,20 @@ impl Encoder {
 		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_SAMPLE_RATE, &mut value) };
 		try!(check("opus_encoder_ctl(OPUS_GET_SAMPLE_RATE)", result));
 		Ok(value as u32)
+	}
+
+	/// Set the encoder's bitrate.
+	pub fn set_bitrate(&mut self, value: i32) -> Result<()> {
+		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_SET_BITRATE, value) };
+		check("opus_encoder_ctl(OPUS_SET_BITRATE)", result)
+	}
+
+	/// Get the encoder's bitrate.
+	pub fn get_bitrate(&mut self) -> Result<i32> {
+		let mut value = 0;
+		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_BITRATE, &mut value) };
+		try!(check("opus_encoder_ctl(OPUS_GET_BITRATE)", result));
+		Ok(value)
 	}
 
 	// TODO: Encoder-specific CTLs
