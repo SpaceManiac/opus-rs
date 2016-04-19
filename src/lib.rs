@@ -107,7 +107,7 @@ pub enum ErrorCode {
 /// Get the libopus version string.
 pub fn version() -> &'static str {
 	// verison string should always be ASCII
-	unsafe { CStr::from_ptr(ffi::opus_get_version_string()) }.to_str().unwrap()
+	unsafe { CStr::from_ptr(ffi::opus_get_version_string() as *const _) }.to_str().unwrap()
 }
 
 // ============================================================================
@@ -551,7 +551,7 @@ pub struct Error {
 impl Error {
 	fn from_code(what: &'static str, code: c_int) -> Error {
 		// description should always be ASCII
-		let description = unsafe { CStr::from_ptr(ffi::opus_strerror(code)) }.to_str().unwrap();
+		let description = unsafe { CStr::from_ptr(ffi::opus_strerror(code) as *const _) }.to_str().unwrap();
 		let code = match code {
 			-1 => ErrorCode::BadArg,
 			-2 => ErrorCode::BufferTooSmall,
