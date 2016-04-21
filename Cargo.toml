@@ -1,6 +1,6 @@
 [package]
 name = "opus"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Tad Hardesty <tad@platymuus.com>"]
 
 description = "Safe Rust bindings for libopus"
