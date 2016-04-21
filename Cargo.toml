@@ -11,5 +11,5 @@ keywords = ["opus", "codec", "voice", "sound", "audio"]
 repository = "https://github.com/SpaceManiac/opus-rs"
 
 [dependencies]
-opus-sys = "0.1.2"
-libc = "0.1"
+opus-sys = "0.2.0"
+libc = "0.2"
