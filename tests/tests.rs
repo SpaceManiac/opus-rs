@@ -10,7 +10,7 @@ const MONO_20MS: usize = 48000 * 1 * 20 / 1000;
 
 #[test]
 fn encode_mono() {
-	let mut encoder = opus::Encoder::new(48000, opus::Channels::Mono, opus::CodingMode::Audio).unwrap();
+	let mut encoder = opus::Encoder::new(48000, opus::Channels::Mono, opus::Application::Audio).unwrap();
 	
 	let mut output = [0; 256];
 	let len = encoder.encode(&[0_i16; MONO_20MS], &mut output).unwrap();
@@ -22,13 +22,13 @@ fn encode_mono() {
 	let len = encoder.encode(&[1_i16; MONO_20MS], &mut output).unwrap();
 	assert!(len > 190 && len < 220);
 
-	let len = encoder.encode(&[0_i16; MONO_20MS], &mut output).unwrap();
-	assert!(len > 170 && len < 190);
+	let myvec = encoder.encode_vec_i16(&[0_i16; MONO_20MS], output.len()).unwrap();
+	assert!(myvec.len() > 170 && myvec.len() < 190);
 }
 
 #[test]
 fn encode_stereo() {
-	let mut encoder = opus::Encoder::new(48000, opus::Channels::Stereo, opus::CodingMode::Audio).unwrap();
+	let mut encoder = opus::Encoder::new(48000, opus::Channels::Stereo, opus::Application::Audio).unwrap();
 
 	let mut output = [0; 512];
 	let len = encoder.encode(&[0_i16; 2 * MONO_20MS], &mut output).unwrap();
@@ -44,13 +44,13 @@ fn encode_stereo() {
 	assert!(len > 240);
 
 	// Very small buffer should still succeed
-	let len = encoder.encode(&[95_i16; 2 * MONO_20MS], &mut [0; 20]).unwrap();
-	assert!(len <= 20);
+	let myvec = encoder.encode_vec_i16(&[95_i16; 2 * MONO_20MS], 20).unwrap();
+	assert!(myvec.len() <= 20);
 }
 
 #[test]
 fn encode_bad_rate() {
-	match opus::Encoder::new(48001, opus::Channels::Mono, opus::CodingMode::Audio) {
+	match opus::Encoder::new(48001, opus::Channels::Mono, opus::Application::Audio) {
 		Ok(_) => panic!("Encoder::new did not return BadArg"),
 		Err(err) => assert_eq!(err.code(), opus::ErrorCode::BadArg),
 	}
@@ -58,7 +58,7 @@ fn encode_bad_rate() {
 
 #[test]
 fn encode_bad_buffer() {
-	let mut encoder = opus::Encoder::new(48000, opus::Channels::Stereo, opus::CodingMode::Audio).unwrap();
+	let mut encoder = opus::Encoder::new(48000, opus::Channels::Stereo, opus::Application::Audio).unwrap();
 	match encoder.encode(&[1_i16; 2 * MONO_20MS], &mut [0; 0]) {
 		Ok(_) => panic!("encode with 0-length buffer did not return BadArg"),
 		Err(err) => assert_eq!(err.code(), opus::ErrorCode::BadArg),
