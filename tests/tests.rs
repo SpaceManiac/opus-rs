@@ -10,7 +10,7 @@ const MONO_20MS: usize = 48000 * 1 * 20 / 1000;
 
 #[test]
 fn encode_mono() {
-	let mut encoder = opus::Encoder::new(48000, opus::Channels::Mono, opus::CodingMode::Audio).unwrap();
+	let mut encoder = opus::Encoder::new(48000, opus::Channels::Mono, opus::Application::Audio).unwrap();
 	
 	let mut output = [0; 256];
 	let len = encoder.encode(&[0_i16; MONO_20MS], &mut output).unwrap();
@@ -31,7 +31,7 @@ fn encode_mono() {
 
 #[test]
 fn encode_stereo() {
-	let mut encoder = opus::Encoder::new(48000, opus::Channels::Stereo, opus::CodingMode::Audio).unwrap();
+	let mut encoder = opus::Encoder::new(48000, opus::Channels::Stereo, opus::Application::Audio).unwrap();
 
 	let mut output = [0; 512];
 	let len = encoder.encode(&[0_i16; 2 * MONO_20MS], &mut output).unwrap();
@@ -56,7 +56,7 @@ fn encode_stereo() {
 
 #[test]
 fn encode_bad_rate() {
-	match opus::Encoder::new(48001, opus::Channels::Mono, opus::CodingMode::Audio) {
+	match opus::Encoder::new(48001, opus::Channels::Mono, opus::Application::Audio) {
 		Ok(_) => panic!("Encoder::new did not return BadArg"),
 		Err(err) => assert_eq!(err.code(), opus::ErrorCode::BadArg),
 	}
@@ -64,7 +64,7 @@ fn encode_bad_rate() {
 
 #[test]
 fn encode_bad_buffer() {
-	let mut encoder = opus::Encoder::new(48000, opus::Channels::Stereo, opus::CodingMode::Audio).unwrap();
+	let mut encoder = opus::Encoder::new(48000, opus::Channels::Stereo, opus::Application::Audio).unwrap();
 	match encoder.encode(&[1_i16; 2 * MONO_20MS], &mut [0; 0]) {
 		Ok(_) => panic!("encode with 0-length buffer did not return BadArg"),
 		Err(err) => assert_eq!(err.code(), opus::ErrorCode::BadArg),
