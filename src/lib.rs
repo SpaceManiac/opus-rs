@@ -153,6 +153,22 @@ impl Encoder {
 		Ok(len as usize)
 	}
 
+	/// Encode an Opus frame to a new buffer.
+	pub fn encode_vec(&mut self, input: &[i16], max_size: usize) -> Result<Vec<u8>> {
+		let mut output: Vec<u8> = vec![0; max_size];
+		let result = try!(self.encode(input, output.as_mut_slice()));
+		output.truncate(result);
+		Ok(output)
+	}
+
+	/// Encode an Opus frame from floating point input to a new buffer.
+	pub fn encode_vec_float(&mut self, input: &[f32], max_size: usize) -> Result<Vec<u8>> {
+		let mut output: Vec<u8> = vec![0; max_size];
+		let result = try!(self.encode_float(input, output.as_mut_slice()));
+		output.truncate(result);
+		Ok(output)
+	}
+
 	/// Reset the codec state to be equivalent to a freshly initialized state.
 	pub fn reset_state(&mut self) -> Result<()> {
 		check("opus_encoder_ctl(OPUS_RESET_STATE)", unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_RESET_STATE) })

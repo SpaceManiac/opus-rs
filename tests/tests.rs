@@ -24,6 +24,9 @@ fn encode_mono() {
 
 	let len = encoder.encode(&[0_i16; MONO_20MS], &mut output).unwrap();
 	assert!(len > 170 && len < 190);
+
+	let myvec = encoder.encode_vec(&[1_i16; MONO_20MS], output.len()).unwrap();
+	assert!(myvec.len() > 120 && myvec.len() < 140);
 }
 
 #[test]
@@ -46,6 +49,9 @@ fn encode_stereo() {
 	// Very small buffer should still succeed
 	let len = encoder.encode(&[95_i16; 2 * MONO_20MS], &mut [0; 20]).unwrap();
 	assert!(len <= 20);
+
+	let myvec = encoder.encode_vec(&[95_i16; 2 * MONO_20MS], 20).unwrap();
+	assert!(myvec.len() <= 20);
 }
 
 #[test]
