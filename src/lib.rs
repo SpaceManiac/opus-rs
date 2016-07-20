@@ -196,6 +196,24 @@ impl Encoder {
 		Ok(value)
 	}
 
+        ///Encode and return the data
+        pub fn encode_vec_i16(&mut self, x: &[i16], max_size: usize) -> Result<Vec<u8>> {
+            let mut output: Vec<u8> = vec![0; max_size];
+            let result = self.encode(x, output.as_mut_slice());
+            try!(result);
+            output.resize(result.unwrap(), 0);
+            Ok(output)
+        }
+
+        ///Encode and return the data
+        pub fn encode_vec_f32(&mut self, x: &[f32], max_size: usize) -> Result<Vec<u8>> {
+            let mut output: Vec<u8> = vec![0; max_size];
+            let result = self.encode_float(x, output.as_mut_slice());
+            try!(result);
+            output.resize(result.unwrap(), 0);
+            Ok(output)
+        }
+
 	// TODO: Encoder-specific CTLs
 }
 
