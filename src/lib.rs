@@ -35,9 +35,9 @@ const OPUS_AUTO: c_int = -1000;
 const OPUS_BITRATE_MAX: c_int = -1;
 
 
-/// The possible coding modes for the codec.
+/// The possible applications for the codec.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub enum CodingMode {
+pub enum Application {
 	/// Best for most VoIP/videoconference applications where listening quality and intelligibility matter most.
 	Voip = 2048,
 	/// Best for broadcast/high-fidelity application where the decoded audio should be as close as possible to the input.
@@ -135,7 +135,7 @@ pub struct Encoder {
 
 impl Encoder {
 	/// Create and initialize an encoder.
-	pub fn new(sample_rate: u32, channels: Channels, mode: CodingMode) -> Result<Encoder> {
+	pub fn new(sample_rate: u32, channels: Channels, mode: Application) -> Result<Encoder> {
 		let mut error = 0;
 		let ptr = unsafe { ffi::opus_encoder_create(
 			sample_rate as i32,
