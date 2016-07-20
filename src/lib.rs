@@ -31,6 +31,9 @@ const OPUS_GET_SAMPLE_RATE: c_int = 4029; // out *i32
 // Encoder CTLs
 const OPUS_SET_BITRATE: c_int = 4002; // in i32
 const OPUS_GET_BITRATE: c_int = 4003; // out *i32
+const OPUS_AUTO: c_int = -1000;
+const OPUS_BITRATE_MAX: c_int = -1;
+
 
 /// The possible coding modes for the codec.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -102,6 +105,17 @@ pub enum ErrorCode {
 	AllocFail = -7,
 	/// An unknown failure.
 	Unknown = -8,
+}
+
+/// Possible error codes.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum Bitrate {
+        ///Default bitrate decided by the encoder (not recommended)
+        Auto,
+        ///Maximum bitrate allowed (up to maximum number of bytes for the packet)
+        Max,
+        ///Explicit bitrate choice (in bit/second)
+        Bits(i32),
 }
 
 /// Get the libopus version string.
@@ -183,17 +197,26 @@ impl Encoder {
 	}
 
 	/// Set the encoder's bitrate.
-	pub fn set_bitrate(&mut self, value: i32) -> Result<()> {
-		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_SET_BITRATE, value) };
+	pub fn set_bitrate(&mut self, value: Bitrate) -> Result<()> {
+                let val: i32 = match value {
+                    Bitrate::Auto => OPUS_AUTO,
+                    Bitrate::Max => OPUS_BITRATE_MAX,
+                    Bitrate::Bits(b) => b,
+                };
+		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_SET_BITRATE, val) };
 		check("opus_encoder_ctl(OPUS_SET_BITRATE)", result)
 	}
 
 	/// Get the encoder's bitrate.
-	pub fn get_bitrate(&mut self) -> Result<i32> {
+	pub fn get_bitrate(&mut self) -> Result<Bitrate> {
 		let mut value: i32 = 0;
 		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_BITRATE, &mut value) };
 		try!(check("opus_encoder_ctl(OPUS_GET_BITRATE)", result));
-		Ok(value)
+		Ok(match value {
+		    OPUS_AUTO => Bitrate::Auto,
+		    OPUS_BITRATE_MAX => Bitrate::Max,
+		    _ => Bitrate::Bits(value),
+		})
 	}
 
         ///Encode and return the data
