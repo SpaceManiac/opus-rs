@@ -35,9 +35,11 @@ const OPUS_GET_BITRATE: c_int = 4003; // out *i32
 /// The possible applications for the codec.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum Application {
-	/// Best for most VoIP/videoconference applications where listening quality and intelligibility matter most.
+	/// Best for most VoIP/videoconference applications where listening quality
+	/// and intelligibility matter most.
 	Voip = 2048,
-	/// Best for broadcast/high-fidelity application where the decoded audio should be as close as possible to the input.
+	/// Best for broadcast/high-fidelity application where the decoded audio
+	/// should be as close as possible to the input.
 	Audio = 2049,
 	/// Only use when lowest-achievable latency is what matters most.
 	LowDelay = 2051,
