@@ -31,6 +31,10 @@ const OPUS_GET_SAMPLE_RATE: c_int = 4029; // out *i32
 // Encoder CTLs
 const OPUS_SET_BITRATE: c_int = 4002; // in i32
 const OPUS_GET_BITRATE: c_int = 4003; // out *i32
+const OPUS_SET_INBAND_FEC: c_int = 4012; // in i32
+const OPUS_GET_INBAND_FEC: c_int = 4013; // out *i32
+const OPUS_SET_PACKET_LOSS_PERC: c_int = 4014; // in i32
+const OPUS_GET_PACKET_LOSS_PERC: c_int = 4015; // out *i32
 
 /// The possible applications for the codec.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -211,6 +215,35 @@ impl Encoder {
 		let mut value: i32 = 0;
 		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_BITRATE, &mut value) };
 		try!(check("opus_encoder_ctl(OPUS_GET_BITRATE)", result));
+		Ok(value)
+	}
+
+	/// Configures the encoder's use of inband forward error correction (FEC).
+	pub fn set_inband_fec(&mut self, value: bool) -> Result<()> {
+		let value = if value { 1 } else { 0 };
+		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_SET_INBAND_FEC, value) };
+		check("opus_encoder_ctl(OPUS_SET_INBAND_FEC)", result)
+	}
+
+	/// Gets encoder's configured use of inband forward error correction.
+	pub fn get_inband_fec(&mut self) -> Result<bool> {
+		let mut value: i32 = 0;
+		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_INBAND_FEC, &mut value) };
+		try!(check("opus_encoder_ctl(OPUS_GET_INBAND_FEC)", result));
+		Ok(value != 0)
+	}
+
+	/// Sets the encoder's expected packet loss percentage.
+	pub fn set_packet_loss_perc(&mut self, value: i32) -> Result<()> {
+		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_SET_PACKET_LOSS_PERC, value) };
+		check("opus_encoder_ctl(OPUS_SET_PACKET_LOSS_PERC)", result)
+	}
+
+	/// Gets the encoder's expected packet loss percentage.
+	pub fn get_packet_loss_perc(&mut self) -> Result<i32> {
+		let mut value: i32 = 0;
+		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_PACKET_LOSS_PERC, &mut value) };
+		try!(check("opus_encoder_ctl(OPUS_GET_PACKET_LOSS_PERC)", result));
 		Ok(value)
 	}
 
