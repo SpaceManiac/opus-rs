@@ -35,6 +35,7 @@ const OPUS_SET_INBAND_FEC: c_int = 4012; // in i32
 const OPUS_GET_INBAND_FEC: c_int = 4013; // out *i32
 const OPUS_SET_PACKET_LOSS_PERC: c_int = 4014; // in i32
 const OPUS_GET_PACKET_LOSS_PERC: c_int = 4015; // out *i32
+const OPUS_GET_LOOKAHEAD: c_int = 4027; // out *i32
 
 /// The possible applications for the codec.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -244,6 +245,14 @@ impl Encoder {
 		let mut value: i32 = 0;
 		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_PACKET_LOSS_PERC, &mut value) };
 		try!(check("opus_encoder_ctl(OPUS_GET_PACKET_LOSS_PERC)", result));
+		Ok(value)
+	}
+
+	/// Gets the total samples of delay added by the entire codec.
+	pub fn get_lookahead(&mut self) -> Result<i32> {
+		let mut value: i32 = 0;
+		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_LOOKAHEAD, &mut value) };
+		try!(check("opus_encoder_ctl(OPUS_GET_LOOKAHEAD)", result));
 		Ok(value)
 	}
 
