@@ -13,3 +13,6 @@ repository = "https://github.com/SpaceManiac/opus-rs"
 [dependencies]
 opus-sys = "0.2.0"
 libc = "0.2"
+
+[dev-dependencies]
+compiletest_rs = "0.2.4"
