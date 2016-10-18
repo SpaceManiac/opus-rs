@@ -1,6 +1,6 @@
 [package]
 name = "opus"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Tad Hardesty <tad@platymuus.com>"]
 
 description = "Safe Rust bindings for libopus"
@@ -9,6 +9,7 @@ license = "MIT/Apache-2.0"
 keywords = ["opus", "codec", "voice", "sound", "audio"]
 
 repository = "https://github.com/SpaceManiac/opus-rs"
+documentation = "https://wombat.platymuus.com/rustdoc/opus_0.2.0/"
 
 [dependencies]
 opus-sys = "0.2.0"
