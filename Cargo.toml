@@ -7,6 +7,8 @@ description = "Safe Rust bindings for libopus"
 readme = "README.md"
 license = "MIT/Apache-2.0"
 keywords = ["opus", "codec", "voice", "sound", "audio"]
+categories = ["api-bindings", "encoding", "compression",
+	"multimedia::audio", "multimedia::encoding"]
 
 repository = "https://github.com/SpaceManiac/opus-rs"
 documentation = "https://wombat.platymuus.com/rustdoc/opus_0.2.0/"
