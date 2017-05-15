@@ -36,6 +36,11 @@ const OPUS_GET_INBAND_FEC: c_int = 4013; // out *i32
 const OPUS_SET_PACKET_LOSS_PERC: c_int = 4014; // in i32
 const OPUS_GET_PACKET_LOSS_PERC: c_int = 4015; // out *i32
 const OPUS_GET_LOOKAHEAD: c_int = 4027; // out *i32
+// Decoder CTLs
+const OPUS_SET_GAIN: c_int = 4034; // in i32
+const OPUS_GET_GAIN: c_int = 4045; // out *i32
+const OPUS_GET_LAST_PACKET_DURATION: c_int = 4039; // out *i32
+const OPUS_GET_PITCH: c_int = 4033; // out *i32
 
 // Bitrate
 const OPUS_AUTO: c_int = -1000;
@@ -298,6 +303,23 @@ pub struct Decoder {
 	channels: Channels,
 }
 
+macro_rules! ctl {
+	($f:ident, $this:ident, $ctl:ident, $($rest:expr),*) => {
+		check(
+			concat!(stringify!($f), "(", stringify!($ctl), ")"),
+			unsafe {
+				ffi::$f($this.ptr, $ctl, $($rest),*)
+			}
+		)?
+	}
+}
+
+macro_rules! dec_ctl {
+	($this:ident, $ctl:ident, $($rest:expr),*) => {
+		ctl!(opus_decoder_ctl, $this, $ctl, $($rest),*)
+	}
+}
+
 impl Decoder {
 	/// Create and initialize a decoder.
 	pub fn new(sample_rate: u32, channels: Channels) -> Result<Decoder> {
@@ -370,7 +392,48 @@ impl Decoder {
 		Ok(value as u32)
 	}
 
-	// TODO: Decoder-specific CTLs
+	// ------------
+	// Decoder CTLs
+
+	/// Configures decoder gain adjustment.
+	///
+	/// Scales the decoded output by a factor specified in Q8 dB units. This has
+	/// a maximum range of -32768 to 32768 inclusive, and returns `BadArg`
+	/// otherwise. The default is zero indicating no adjustment. This setting
+	/// survives decoder reset.
+	///
+	/// `gain = pow(10, x / (20.0 * 256))`
+	pub fn set_gain(&mut self, gain: i32) -> Result<()> {
+		dec_ctl!(self, OPUS_SET_GAIN, gain);
+		Ok(())
+	}
+
+	/// Gets the decoder's configured gain adjustment.
+	pub fn get_gain(&mut self) -> Result<i32> {
+		let mut value: i32 = 0;
+		dec_ctl!(self, OPUS_GET_GAIN, &mut value);
+		Ok(value)
+	}
+
+	/// Gets the duration (in samples) of the last packet successfully decoded
+	/// or concealed.
+	pub fn get_last_packet_duration(&mut self) -> Result<u32> {
+		let mut value: i32 = 0;
+		dec_ctl!(self, OPUS_GET_LAST_PACKET_DURATION, &mut value);
+		Ok(value as u32)
+	}
+
+	/// Gets the pitch of the last decoded frame, if available.
+	///
+	/// This can be used for any post-processing algorithm requiring the use of
+	/// pitch, e.g. time stretching/shortening. If the last frame was not
+	/// voiced, or if the pitch was not coded in the frame, then zero is
+	/// returned.
+	pub fn get_pitch(&mut self) -> Result<i32> {
+		let mut value: i32 = 0;
+		dec_ctl!(self, OPUS_GET_PITCH, &mut value);
+		Ok(value)
+	}
 }
 
 impl Drop for Decoder {
