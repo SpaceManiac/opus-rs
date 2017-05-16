@@ -137,8 +137,25 @@ pub fn version() -> &'static str {
 	unsafe { CStr::from_ptr(ffi::opus_get_version_string()) }.to_str().unwrap()
 }
 
+macro_rules! ctl {
+	($f:ident, $this:ident, $ctl:ident, $($rest:expr),*) => {
+		check(
+			concat!(stringify!($f), "(", stringify!($ctl), ")"),
+			unsafe {
+				ffi::$f($this.ptr, $ctl, $($rest),*)
+			}
+		)?
+	}
+}
+
 // ============================================================================
 // Encoder
+
+macro_rules! enc_ctl {
+	($this:ident, $ctl:ident $(, $rest:expr)*) => {
+		ctl!(opus_encoder_ctl, $this, $ctl, $($rest),*)
+	}
+}
 
 /// An Opus encoder with associated state.
 pub struct Encoder {
@@ -196,51 +213,55 @@ impl Encoder {
 		Ok(output)
 	}
 
+	// ------------
+	// Generic CTLs
+
 	/// Reset the codec state to be equivalent to a freshly initialized state.
 	pub fn reset_state(&mut self) -> Result<()> {
-		check("opus_encoder_ctl(OPUS_RESET_STATE)", unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_RESET_STATE) })
+		enc_ctl!(self, OPUS_RESET_STATE);
+		Ok(())
 	}
 
 	/// Get the final range of the codec's entropy coder.
 	pub fn get_final_range(&mut self) -> Result<u32> {
 		let mut value: u32 = 0;
-		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_FINAL_RANGE, &mut value) };
-		try!(check("opus_encoder_ctl(OPUS_GET_FINAL_RANGE)", result));
+		enc_ctl!(self, OPUS_GET_FINAL_RANGE, &mut value);
 		Ok(value)
 	}
 
 	/// Get the encoder's configured bandpass.
 	pub fn get_bandwidth(&mut self) -> Result<Bandwidth> {
 		let mut value: i32 = 0;
-		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_BANDWIDTH, &mut value) };
-		try!(check("opus_encoder_ctl(OPUS_GET_BANDWIDTH)", result));
-		Bandwidth::from_int(result).ok_or_else(|| Error::from_code("opus_encoder_ctl(OPUS_GET_BANDWIDTH)", ffi::OPUS_BAD_ARG))
+		enc_ctl!(self, OPUS_GET_BANDWIDTH, &mut value);
+		Bandwidth::from_int(value).ok_or_else(||
+			Error::from_code("opus_encoder_ctl(OPUS_GET_BANDWIDTH)", ffi::OPUS_BAD_ARG))
 	}
 
 	/// Get the samping rate the encoder was intialized with.
 	pub fn get_sample_rate(&mut self) -> Result<u32> {
 		let mut value: i32 = 0;
-		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_SAMPLE_RATE, &mut value) };
-		try!(check("opus_encoder_ctl(OPUS_GET_SAMPLE_RATE)", result));
+		enc_ctl!(self, OPUS_GET_SAMPLE_RATE, &mut value);
 		Ok(value as u32)
 	}
 
+	// ------------
+	// Encoder CTLs
+
 	/// Set the encoder's bitrate.
 	pub fn set_bitrate(&mut self, value: Bitrate) -> Result<()> {
-		let val: i32 = match value {
+		let value: i32 = match value {
 			Bitrate::Auto => OPUS_AUTO,
 			Bitrate::Max => OPUS_BITRATE_MAX,
 			Bitrate::Bits(b) => b,
 		};
-		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_SET_BITRATE, val) };
-		check("opus_encoder_ctl(OPUS_SET_BITRATE)", result)
+		enc_ctl!(self, OPUS_SET_BITRATE, value);
+		Ok(())
 	}
 
 	/// Get the encoder's bitrate.
 	pub fn get_bitrate(&mut self) -> Result<Bitrate> {
 		let mut value: i32 = 0;
-		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_BITRATE, &mut value) };
-		try!(check("opus_encoder_ctl(OPUS_GET_BITRATE)", result));
+		enc_ctl!(self, OPUS_GET_BITRATE, &mut value);
 		Ok(match value {
 			OPUS_AUTO => Bitrate::Auto,
 			OPUS_BITRATE_MAX => Bitrate::Max,
@@ -250,38 +271,35 @@ impl Encoder {
 
 	/// Configures the encoder's use of inband forward error correction (FEC).
 	pub fn set_inband_fec(&mut self, value: bool) -> Result<()> {
-		let value = if value { 1 } else { 0 };
-		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_SET_INBAND_FEC, value) };
-		check("opus_encoder_ctl(OPUS_SET_INBAND_FEC)", result)
+		let value: i32 = if value { 1 } else { 0 };
+		enc_ctl!(self, OPUS_SET_INBAND_FEC, value);
+		Ok(())
 	}
 
 	/// Gets encoder's configured use of inband forward error correction.
 	pub fn get_inband_fec(&mut self) -> Result<bool> {
 		let mut value: i32 = 0;
-		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_INBAND_FEC, &mut value) };
-		try!(check("opus_encoder_ctl(OPUS_GET_INBAND_FEC)", result));
+		enc_ctl!(self, OPUS_GET_INBAND_FEC, &mut value);
 		Ok(value != 0)
 	}
 
 	/// Sets the encoder's expected packet loss percentage.
 	pub fn set_packet_loss_perc(&mut self, value: i32) -> Result<()> {
-		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_SET_PACKET_LOSS_PERC, value) };
-		check("opus_encoder_ctl(OPUS_SET_PACKET_LOSS_PERC)", result)
+		enc_ctl!(self, OPUS_SET_PACKET_LOSS_PERC, value);
+		Ok(())
 	}
 
 	/// Gets the encoder's expected packet loss percentage.
 	pub fn get_packet_loss_perc(&mut self) -> Result<i32> {
 		let mut value: i32 = 0;
-		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_PACKET_LOSS_PERC, &mut value) };
-		try!(check("opus_encoder_ctl(OPUS_GET_PACKET_LOSS_PERC)", result));
+		enc_ctl!(self, OPUS_GET_PACKET_LOSS_PERC, &mut value);
 		Ok(value)
 	}
 
 	/// Gets the total samples of delay added by the entire codec.
 	pub fn get_lookahead(&mut self) -> Result<i32> {
 		let mut value: i32 = 0;
-		let result = unsafe { ffi::opus_encoder_ctl(self.ptr, OPUS_GET_LOOKAHEAD, &mut value) };
-		try!(check("opus_encoder_ctl(OPUS_GET_LOOKAHEAD)", result));
+		enc_ctl!(self, OPUS_GET_LOOKAHEAD, &mut value);
 		Ok(value)
 	}
 
@@ -297,27 +315,16 @@ impl Drop for Encoder {
 // ============================================================================
 // Decoder
 
+macro_rules! dec_ctl {
+	($this:ident, $ctl:ident $(, $rest:expr)*) => {
+		ctl!(opus_decoder_ctl, $this, $ctl, $($rest),*)
+	}
+}
+
 /// An Opus decoder with associated state.
 pub struct Decoder {
 	ptr: *mut ffi::OpusDecoder,
 	channels: Channels,
-}
-
-macro_rules! ctl {
-	($f:ident, $this:ident, $ctl:ident, $($rest:expr),*) => {
-		check(
-			concat!(stringify!($f), "(", stringify!($ctl), ")"),
-			unsafe {
-				ffi::$f($this.ptr, $ctl, $($rest),*)
-			}
-		)?
-	}
-}
-
-macro_rules! dec_ctl {
-	($this:ident, $ctl:ident, $($rest:expr),*) => {
-		ctl!(opus_decoder_ctl, $this, $ctl, $($rest),*)
-	}
 }
 
 impl Decoder {
@@ -363,32 +370,34 @@ impl Decoder {
 		Ok(len as usize)
 	}
 
+	// ------------
+	// Generic CTLs
+
 	/// Reset the codec state to be equivalent to a freshly initialized state.
 	pub fn reset_state(&mut self) -> Result<()> {
-		check("opus_decoder_ctl(OPUS_RESET_STATE)", unsafe { ffi::opus_decoder_ctl(self.ptr, OPUS_RESET_STATE) })
+		dec_ctl!(self, OPUS_RESET_STATE);
+		Ok(())
 	}
 
 	/// Get the final range of the codec's entropy coder.
 	pub fn get_final_range(&mut self) -> Result<u32> {
 		let mut value: u32 = 0;
-		let result = unsafe { ffi::opus_decoder_ctl(self.ptr, OPUS_GET_FINAL_RANGE, &mut value) };
-		try!(check("opus_decoder_ctl(OPUS_GET_FINAL_RANGE)", result));
+		dec_ctl!(self, OPUS_GET_FINAL_RANGE, &mut value);
 		Ok(value)
 	}
 
 	/// Get the decoder's last bandpass.
 	pub fn get_bandwidth(&mut self) -> Result<Bandwidth> {
 		let mut value: i32 = 0;
-		let result = unsafe { ffi::opus_decoder_ctl(self.ptr, OPUS_GET_BANDWIDTH, &mut value) };
-		try!(check("opus_decoder_ctl(OPUS_GET_BANDWIDTH)", result));
-		Bandwidth::from_int(result).ok_or_else(|| Error::from_code("opus_decoder_ctl(OPUS_GET_BANDWIDTH)", ffi::OPUS_BAD_ARG))
+		dec_ctl!(self, OPUS_GET_BANDWIDTH, &mut value);
+		Bandwidth::from_int(value).ok_or_else(||
+			Error::from_code("opus_decoder_ctl(OPUS_GET_BANDWIDTH)", ffi::OPUS_BAD_ARG))
 	}
 
 	/// Get the samping rate the decoder was intialized with.
 	pub fn get_sample_rate(&mut self) -> Result<u32> {
 		let mut value: i32 = 0;
-		let result = unsafe { ffi::opus_decoder_ctl(self.ptr, OPUS_GET_SAMPLE_RATE, &mut value) };
-		try!(check("opus_decoder_ctl(OPUS_GET_SAMPLE_RATE)", result));
+		dec_ctl!(self, OPUS_GET_SAMPLE_RATE, &mut value);
 		Ok(value as u32)
 	}
 
