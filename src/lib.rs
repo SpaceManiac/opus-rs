@@ -97,6 +97,13 @@ impl Bandwidth {
 			_ => return None,
 		})
 	}
+
+	fn decode(value: i32, what: &'static str) -> Result<Bandwidth> {
+		match Bandwidth::from_int(value) {
+			Some(bandwidth) => Ok(bandwidth),
+			None => Err(Error::bad_arg(what)),
+		}
+	}
 }
 
 /// Possible error codes.
@@ -120,6 +127,28 @@ pub enum ErrorCode {
 	Unknown = -8,
 }
 
+impl ErrorCode {
+	fn from_int(value: c_int) -> ErrorCode {
+		use ErrorCode::*;
+		match value {
+			ffi::OPUS_BAD_ARG => BadArg,
+			ffi::OPUS_BUFFER_TOO_SMALL => BufferTooSmall,
+			ffi::OPUS_INTERNAL_ERROR => InternalError,
+			ffi::OPUS_INVALID_PACKET => InvalidPacket,
+			ffi::OPUS_UNIMPLEMENTED => Unimplemented,
+			ffi::OPUS_INVALID_STATE => InvalidState,
+			ffi::OPUS_ALLOC_FAIL => AllocFail,
+			_ => Unknown,
+		}
+	}
+
+	/// Get a human-readable error string for this error code.
+	pub fn description(self) -> &'static str {
+		// should always be ASCII and non-null for any input
+		unsafe { CStr::from_ptr(ffi::opus_strerror(self as c_int)) }.to_str().unwrap()
+	}
+}
+
 /// Possible bitrates.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum Bitrate {
@@ -132,6 +161,10 @@ pub enum Bitrate {
 }
 
 /// Get the libopus version string.
+///
+/// Applications may look for the substring "-fixed" in the version string to
+/// determine whether they have a fixed-point or floating-point build at
+/// runtime.
 pub fn version() -> &'static str {
 	// verison string should always be ASCII
 	unsafe { CStr::from_ptr(ffi::opus_get_version_string()) }.to_str().unwrap()
@@ -233,8 +266,7 @@ impl Encoder {
 	pub fn get_bandwidth(&mut self) -> Result<Bandwidth> {
 		let mut value: i32 = 0;
 		enc_ctl!(self, OPUS_GET_BANDWIDTH, &mut value);
-		Bandwidth::from_int(value).ok_or_else(||
-			Error::from_code("opus_encoder_ctl(OPUS_GET_BANDWIDTH)", ffi::OPUS_BAD_ARG))
+		Bandwidth::decode(value, "opus_encoder_ctl(OPUS_GET_BANDWIDTH)")
 	}
 
 	/// Get the samping rate the encoder was intialized with.
@@ -390,8 +422,7 @@ impl Decoder {
 	pub fn get_bandwidth(&mut self) -> Result<Bandwidth> {
 		let mut value: i32 = 0;
 		dec_ctl!(self, OPUS_GET_BANDWIDTH, &mut value);
-		Bandwidth::from_int(value).ok_or_else(||
-			Error::from_code("opus_decoder_ctl(OPUS_GET_BANDWIDTH)", ffi::OPUS_BAD_ARG))
+		Bandwidth::decode(value, "opus_decoder_ctl(OPUS_GET_BANDWIDTH)")
 	}
 
 	/// Get the samping rate the decoder was intialized with.
@@ -464,24 +495,24 @@ pub mod packet {
 	/// Get the bandwidth of an Opus packet.
 	pub fn get_bandwidth(packet: &[u8]) -> Result<Bandwidth> {
 		if packet.len() < 1 {
-			return Err(Error::from_code("opus_packet_get_bandwidth", ffi::OPUS_BAD_ARG))
+			return Err(Error::bad_arg("opus_packet_get_bandwidth"));
 		}
 		let bandwidth = unsafe { ffi::opus_packet_get_bandwidth(packet.as_ptr()) };
 		try!(check("opus_packet_get_bandwidth", bandwidth));
-		Bandwidth::from_int(bandwidth).ok_or_else(|| Error::from_code("opus_packet_get_bandwidth", ffi::OPUS_BAD_ARG))
+		Bandwidth::decode(bandwidth, "opus_packet_get_bandwidth")
 	}
 
 	/// Get the number of channels from an Opus packet.
 	pub fn get_nb_channels(packet: &[u8]) -> Result<Channels> {
 		if packet.len() < 1 {
-			return Err(Error::from_code("opus_packet_get_nb_channels", ffi::OPUS_BAD_ARG))
+			return Err(Error::bad_arg("opus_packet_get_nb_channels"));
 		}
 		let channels = unsafe { ffi::opus_packet_get_nb_channels(packet.as_ptr()) };
 		try!(check("opus_packet_get_nb_channels", channels));
 		match channels {
 			1 => Ok(Channels::Mono),
 			2 => Ok(Channels::Stereo),
-			_ => Err(Error::from_code("opus_packet_get_nb_channels", ffi::OPUS_BAD_ARG)),
+			_ => Err(Error::bad_arg("opus_packet_get_nb_channels")),
 		}
 	}
 
@@ -504,7 +535,7 @@ pub mod packet {
 	/// Get the number of samples per frame from an Opus packet.
 	pub fn get_samples_per_frame(packet: &[u8], sample_rate: u32) -> Result<usize> {
 		if packet.len() < 1 {
-			return Err(Error::from_code("opus_packet_get_samples_per_frame", ffi::OPUS_BAD_ARG))
+			return Err(Error::bad_arg("opus_packet_get_samples_per_frame"))
 		}
 		let samples = unsafe { ffi::opus_packet_get_samples_per_frame(packet.as_ptr(), sample_rate as c_int) };
 		try!(check("opus_packet_get_samples_per_frame", samples));
@@ -700,44 +731,40 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub struct Error {
 	function: &'static str,
-	description: &'static str,
 	code: ErrorCode,
 }
 
 impl Error {
+	fn bad_arg(what: &'static str) -> Error {
+		Error { function: what, code: ErrorCode::BadArg }
+	}
+
 	fn from_code(what: &'static str, code: c_int) -> Error {
-		// description should always be ASCII
-		let description = unsafe { CStr::from_ptr(ffi::opus_strerror(code)) }.to_str().unwrap();
-		let code = match code {
-			-1 => ErrorCode::BadArg,
-			-2 => ErrorCode::BufferTooSmall,
-			-3 => ErrorCode::InternalError,
-			-4 => ErrorCode::InvalidPacket,
-			-5 => ErrorCode::Unimplemented,
-			-6 => ErrorCode::InvalidState,
-			-7 => ErrorCode::AllocFail,
-			_ => ErrorCode::Unknown,
-		};
-		Error { function: what, description: description, code: code }
+		Error { function: what, code: ErrorCode::from_int(code) }
 	}
 
 	/// Get the name of the Opus function from which the error originated.
+	#[inline]
 	pub fn function(&self) -> &'static str { self.function }
+
 	/// Get a textual description of the error provided by Opus.
-	pub fn description(&self) -> &'static str { self.description }
+	#[inline]
+	pub fn description(&self) -> &'static str { self.code.description() }
+
 	/// Get the Opus error code of the error.
+	#[inline]
 	pub fn code(&self) -> ErrorCode { self.code }
 }
 
 impl std::fmt::Display for Error {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "{}: {}", self.function, self.description)
+		write!(f, "{}: {}", self.function, self.description())
 	}
 }
 
 impl std::error::Error for Error {
 	fn description(&self) -> &str {
-		self.description
+		self.code.description()
 	}
 }
 
