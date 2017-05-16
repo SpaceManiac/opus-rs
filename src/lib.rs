@@ -225,16 +225,16 @@ impl Encoder {
 	/// Encode an Opus frame.
 	pub fn encode(&mut self, input: &[i16], output: &mut [u8]) -> Result<usize> {
 		let len = ffi!(opus_encode, self.ptr,
-			input.as_ptr(), input.len() as c_int / self.channels as c_int,
-			output.as_mut_ptr(), output.len() as c_int);
+			input.as_ptr(), len(input) / self.channels as c_int,
+			output.as_mut_ptr(), len(output));
 		Ok(len as usize)
 	}
 
 	/// Encode an Opus frame from floating point input.
 	pub fn encode_float(&mut self, input: &[f32], output: &mut [u8]) -> Result<usize> {
 		let len = ffi!(opus_encode_float, self.ptr,
-			input.as_ptr(), input.len() as c_int / self.channels as c_int,
-			output.as_mut_ptr(), output.len() as c_int);
+			input.as_ptr(), len(input) / self.channels as c_int,
+			output.as_mut_ptr(), len(output));
 		Ok(len as usize)
 	}
 
@@ -385,8 +385,8 @@ impl Decoder {
 	/// Decode an Opus packet.
 	pub fn decode(&mut self, input: &[u8], output: &mut [i16], fec: bool) -> Result<usize> {
 		let len = ffi!(opus_decode, self.ptr,
-			input.as_ptr(), input.len() as c_int,
-			output.as_mut_ptr(), output.len() as c_int / self.channels as c_int,
+			input.as_ptr(), len(input),
+			output.as_mut_ptr(), len(output) / self.channels as c_int,
 			fec as c_int);
 		Ok(len as usize)
 	}
@@ -394,8 +394,8 @@ impl Decoder {
 	/// Decode an Opus packet with floating point output.
 	pub fn decode_float(&mut self, input: &[u8], output: &mut [f32], fec: bool) -> Result<usize> {
 		let len = ffi!(opus_decode_float, self.ptr,
-			input.as_ptr(), input.len() as c_int,
-			output.as_mut_ptr(), output.len() as c_int / self.channels as c_int,
+			input.as_ptr(), len(input),
+			output.as_mut_ptr(), len(output) / self.channels as c_int,
 			fec as c_int);
 		Ok(len as usize)
 	}
@@ -521,14 +521,14 @@ pub mod packet {
 
 	/// Get the number of frames in an Opus packet.
 	pub fn get_nb_frames(packet: &[u8]) -> Result<usize> {
-		let frames = ffi!(opus_packet_get_nb_frames, packet.as_ptr(), packet.len() as c_int);
+		let frames = ffi!(opus_packet_get_nb_frames, packet.as_ptr(), len(packet));
 		Ok(frames as usize)
 	}
 
 	/// Get the number of samples of an Opus packet.
 	pub fn get_nb_samples(packet: &[u8], sample_rate: u32) -> Result<usize> {
 		let frames = ffi!(opus_packet_get_nb_samples,
-			packet.as_ptr(), packet.len() as c_int,
+			packet.as_ptr(), len(packet),
 			sample_rate as c_int);
 		Ok(frames as usize)
 	}
@@ -550,7 +550,7 @@ pub mod packet {
 		let mut sizes = [0i16; 48];
 		let mut payload_offset: i32 = 0;
 		let num_frames = ffi!(opus_packet_parse,
-			packet.as_ptr(), packet.len() as c_int,
+			packet.as_ptr(), len(packet),
 			&mut toc, frames.as_mut_ptr(),
 			sizes.as_mut_ptr(), &mut payload_offset);
 
@@ -581,14 +581,15 @@ pub mod packet {
 	/// The packet will be extended from the first `prev_len` bytes of the
 	/// buffer into the rest of the available space.
 	pub fn pad(packet: &mut [u8], prev_len: usize) -> Result<usize> {
-		let result = ffi!(opus_packet_pad, packet.as_mut_ptr(), prev_len as c_int, packet.len() as c_int);
+		let result = ffi!(opus_packet_pad, packet.as_mut_ptr(),
+			check_len(prev_len), len(packet));
 		Ok(result as usize)
 	}
 
 	/// Remove all padding from a given Opus packet and rewrite the TOC sequence
 	/// to minimize space usage.
 	pub fn unpad(packet: &mut [u8]) -> Result<usize> {
-		let result = ffi!(opus_packet_unpad, packet.as_mut_ptr(), packet.len() as c_int);
+		let result = ffi!(opus_packet_unpad, packet.as_mut_ptr(), len(packet));
 		Ok(result as usize)
 	}
 }
@@ -612,7 +613,7 @@ impl SoftClip {
 	pub fn apply(&mut self, signal: &mut [f32]) {
 		unsafe { ffi::opus_pcm_soft_clip(
 			signal.as_mut_ptr(),
-			signal.len() as c_int / self.channels as c_int,
+			len(signal) / self.channels as c_int,
 			self.channels as c_int,
 			self.memory.as_mut_ptr()) };
 	}
@@ -675,7 +676,7 @@ impl<'rp, 'buf> RepacketizerState<'rp, 'buf> {
 	/// Add a packet to the current repacketizer state.
 	pub fn cat(&mut self, packet: &'buf [u8]) -> Result<()> {
 		ffi!(opus_repacketizer_cat, self.rp.ptr,
-			packet.as_ptr(), packet.len() as c_int);
+			packet.as_ptr(), len(packet));
 		Ok(())
 	}
 
@@ -698,7 +699,7 @@ impl<'rp, 'buf> RepacketizerState<'rp, 'buf> {
 	/// All previously submitted frames are used.
 	pub fn out(&mut self, buffer: &mut [u8]) -> Result<usize> {
 		let result = ffi!(opus_repacketizer_out, self.rp.ptr,
-			buffer.as_mut_ptr(), buffer.len() as c_int);
+			buffer.as_mut_ptr(), len(buffer));
 		Ok(result as usize)
 	}
 
@@ -708,8 +709,8 @@ impl<'rp, 'buf> RepacketizerState<'rp, 'buf> {
 	/// The `end` index should not exceed the value of `get_nb_frames()`.
 	pub fn out_range(&mut self, begin: usize, end: usize, buffer: &mut [u8]) -> Result<usize> {
 		let result = ffi!(opus_repacketizer_out_range, self.rp.ptr,
-			begin as c_int, end as c_int,
-			buffer.as_mut_ptr(), buffer.len() as c_int);
+			check_len(begin), check_len(end),
+			buffer.as_mut_ptr(), len(buffer));
 		Ok(result as usize)
 	}
 }
@@ -762,4 +763,17 @@ impl std::error::Error for Error {
 	fn description(&self) -> &str {
 		self.code.description()
 	}
+}
+
+fn check_len(val: usize) -> c_int {
+	let len = val as c_int;
+	if len as usize != val {
+		panic!("length out of range: {}", val);
+	}
+	len
+}
+
+#[inline]
+fn len<T>(slice: &[T]) -> c_int {
+	check_len(slice.len())
 }
