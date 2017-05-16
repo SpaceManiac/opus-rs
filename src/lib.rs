@@ -170,14 +170,24 @@ pub fn version() -> &'static str {
 	unsafe { CStr::from_ptr(ffi::opus_get_version_string()) }.to_str().unwrap()
 }
 
+macro_rules! ffi {
+	($f:ident $(, $rest:expr)*) => {
+		match unsafe { ffi::$f($($rest),*) } {
+			code if code < 0 => return Err(Error::from_code(stringify!($f), code)),
+			code => code,
+		}
+	}
+}
+
 macro_rules! ctl {
 	($f:ident, $this:ident, $ctl:ident, $($rest:expr),*) => {
-		check(
-			concat!(stringify!($f), "(", stringify!($ctl), ")"),
-			unsafe {
-				ffi::$f($this.ptr, $ctl, $($rest),*)
-			}
-		)?
+		match unsafe { ffi::$f($this.ptr, $ctl, $($rest),*) } {
+			code if code < 0 => return Err(Error::from_code(
+				concat!(stringify!($f), "(", stringify!($ctl), ")"),
+				code,
+			)),
+			_ => (),
+		}
 	}
 }
 
@@ -214,19 +224,17 @@ impl Encoder {
 
 	/// Encode an Opus frame.
 	pub fn encode(&mut self, input: &[i16], output: &mut [u8]) -> Result<usize> {
-		let len = unsafe { ffi::opus_encode(self.ptr,
+		let len = ffi!(opus_encode, self.ptr,
 			input.as_ptr(), input.len() as c_int / self.channels as c_int,
-			output.as_mut_ptr(), output.len() as c_int) };
-		try!(check("opus_encode", len));
+			output.as_mut_ptr(), output.len() as c_int);
 		Ok(len as usize)
 	}
 
 	/// Encode an Opus frame from floating point input.
 	pub fn encode_float(&mut self, input: &[f32], output: &mut [u8]) -> Result<usize> {
-		let len = unsafe { ffi::opus_encode_float(self.ptr,
+		let len = ffi!(opus_encode_float, self.ptr,
 			input.as_ptr(), input.len() as c_int / self.channels as c_int,
-			output.as_mut_ptr(), output.len() as c_int) };
-		try!(check("opus_encode_float", len));
+			output.as_mut_ptr(), output.len() as c_int);
 		Ok(len as usize)
 	}
 
@@ -376,29 +384,26 @@ impl Decoder {
 
 	/// Decode an Opus packet.
 	pub fn decode(&mut self, input: &[u8], output: &mut [i16], fec: bool) -> Result<usize> {
-		let len = unsafe { ffi::opus_decode(self.ptr,
+		let len = ffi!(opus_decode, self.ptr,
 			input.as_ptr(), input.len() as c_int,
 			output.as_mut_ptr(), output.len() as c_int / self.channels as c_int,
-			fec as c_int) };
-		try!(check("opus_decode", len));
+			fec as c_int);
 		Ok(len as usize)
 	}
 
 	/// Decode an Opus packet with floating point output.
 	pub fn decode_float(&mut self, input: &[u8], output: &mut [f32], fec: bool) -> Result<usize> {
-		let len = unsafe { ffi::opus_decode_float(self.ptr,
+		let len = ffi!(opus_decode_float, self.ptr,
 			input.as_ptr(), input.len() as c_int,
 			output.as_mut_ptr(), output.len() as c_int / self.channels as c_int,
-			fec as c_int) };
-		try!(check("opus_decode_float", len));
+			fec as c_int);
 		Ok(len as usize)
 	}
 
 	/// Get the number of samples of an Opus packet.
 	pub fn get_nb_samples(&self, packet: &[u8]) -> Result<usize> {
-		let len = unsafe { ffi::opus_decoder_get_nb_samples(self.ptr,
-			packet.as_ptr(), packet.len() as i32) };
-		try!(check("opus_decoder_get_nb_samples", len));
+		let len = ffi!(opus_decoder_get_nb_samples, self.ptr,
+			packet.as_ptr(), packet.len() as i32);
 		Ok(len as usize)
 	}
 
@@ -488,7 +493,7 @@ impl Drop for Decoder {
 /// Analyze raw Opus packets.
 pub mod packet {
 	use super::*;
-	use super::{ffi, check};
+	use super::ffi;
 	use std::{ptr, slice};
 	use libc::c_int;
 
@@ -497,8 +502,7 @@ pub mod packet {
 		if packet.len() < 1 {
 			return Err(Error::bad_arg("opus_packet_get_bandwidth"));
 		}
-		let bandwidth = unsafe { ffi::opus_packet_get_bandwidth(packet.as_ptr()) };
-		try!(check("opus_packet_get_bandwidth", bandwidth));
+		let bandwidth = ffi!(opus_packet_get_bandwidth, packet.as_ptr());
 		Bandwidth::decode(bandwidth, "opus_packet_get_bandwidth")
 	}
 
@@ -507,8 +511,7 @@ pub mod packet {
 		if packet.len() < 1 {
 			return Err(Error::bad_arg("opus_packet_get_nb_channels"));
 		}
-		let channels = unsafe { ffi::opus_packet_get_nb_channels(packet.as_ptr()) };
-		try!(check("opus_packet_get_nb_channels", channels));
+		let channels = ffi!(opus_packet_get_nb_channels, packet.as_ptr());
 		match channels {
 			1 => Ok(Channels::Mono),
 			2 => Ok(Channels::Stereo),
@@ -518,17 +521,15 @@ pub mod packet {
 
 	/// Get the number of frames in an Opus packet.
 	pub fn get_nb_frames(packet: &[u8]) -> Result<usize> {
-		let frames = unsafe { ffi::opus_packet_get_nb_frames(packet.as_ptr(), packet.len() as c_int) };
-		try!(check("opus_packet_get_nb_frames", frames));
+		let frames = ffi!(opus_packet_get_nb_frames, packet.as_ptr(), packet.len() as c_int);
 		Ok(frames as usize)
 	}
 
 	/// Get the number of samples of an Opus packet.
 	pub fn get_nb_samples(packet: &[u8], sample_rate: u32) -> Result<usize> {
-		let frames = unsafe { ffi::opus_packet_get_nb_samples(
+		let frames = ffi!(opus_packet_get_nb_samples,
 			packet.as_ptr(), packet.len() as c_int,
-			sample_rate as c_int) };
-		try!(check("opus_packet_get_nb_samples", frames));
+			sample_rate as c_int);
 		Ok(frames as usize)
 	}
 
@@ -537,8 +538,8 @@ pub mod packet {
 		if packet.len() < 1 {
 			return Err(Error::bad_arg("opus_packet_get_samples_per_frame"))
 		}
-		let samples = unsafe { ffi::opus_packet_get_samples_per_frame(packet.as_ptr(), sample_rate as c_int) };
-		try!(check("opus_packet_get_samples_per_frame", samples));
+		let samples = ffi!(opus_packet_get_samples_per_frame,
+			packet.as_ptr(), sample_rate as c_int);
 		Ok(samples as usize)
 	}
 
@@ -548,11 +549,10 @@ pub mod packet {
 		let mut frames = [ptr::null(); 48];
 		let mut sizes = [0i16; 48];
 		let mut payload_offset: i32 = 0;
-		let num_frames = unsafe { ffi::opus_packet_parse(
+		let num_frames = ffi!(opus_packet_parse,
 			packet.as_ptr(), packet.len() as c_int,
 			&mut toc, frames.as_mut_ptr(),
-			sizes.as_mut_ptr(), &mut payload_offset) };
-		try!(check("opus_packet_parse", num_frames));
+			sizes.as_mut_ptr(), &mut payload_offset);
 
 		let mut frames_vec = Vec::with_capacity(num_frames as usize);
 		for i in 0..num_frames as usize {
@@ -581,16 +581,14 @@ pub mod packet {
 	/// The packet will be extended from the first `prev_len` bytes of the
 	/// buffer into the rest of the available space.
 	pub fn pad(packet: &mut [u8], prev_len: usize) -> Result<usize> {
-		let result = unsafe { ffi::opus_packet_pad(packet.as_mut_ptr(), prev_len as c_int, packet.len() as c_int) };
-		try!(check("opus_packet_pad", result));
+		let result = ffi!(opus_packet_pad, packet.as_mut_ptr(), prev_len as c_int, packet.len() as c_int);
 		Ok(result as usize)
 	}
 
 	/// Remove all padding from a given Opus packet and rewrite the TOC sequence
 	/// to minimize space usage.
 	pub fn unpad(packet: &mut [u8]) -> Result<usize> {
-		let result = unsafe { ffi::opus_packet_unpad(packet.as_mut_ptr(), packet.len() as c_int) };
-		try!(check("opus_packet_unpad", result));
+		let result = ffi!(opus_packet_unpad, packet.as_mut_ptr(), packet.len() as c_int);
 		Ok(result as usize)
 	}
 }
@@ -676,9 +674,9 @@ pub struct RepacketizerState<'rp, 'buf> {
 impl<'rp, 'buf> RepacketizerState<'rp, 'buf> {
 	/// Add a packet to the current repacketizer state.
 	pub fn cat(&mut self, packet: &'buf [u8]) -> Result<()> {
-		let result = unsafe { ffi::opus_repacketizer_cat(self.rp.ptr,
-			packet.as_ptr(), packet.len() as c_int) };
-		check("opus_repacketizer_cat", result)
+		ffi!(opus_repacketizer_cat, self.rp.ptr,
+			packet.as_ptr(), packet.len() as c_int);
+		Ok(())
 	}
 
 	/// Add a packet to the current repacketizer state, moving it.
@@ -699,9 +697,8 @@ impl<'rp, 'buf> RepacketizerState<'rp, 'buf> {
 	///
 	/// All previously submitted frames are used.
 	pub fn out(&mut self, buffer: &mut [u8]) -> Result<usize> {
-		let result = unsafe { ffi::opus_repacketizer_out(self.rp.ptr,
-			buffer.as_mut_ptr(), buffer.len() as c_int) };
-		try!(check("opus_repacketizer_out", result));
+		let result = ffi!(opus_repacketizer_out, self.rp.ptr,
+			buffer.as_mut_ptr(), buffer.len() as c_int);
 		Ok(result as usize)
 	}
 
@@ -710,10 +707,9 @@ impl<'rp, 'buf> RepacketizerState<'rp, 'buf> {
 	///
 	/// The `end` index should not exceed the value of `get_nb_frames()`.
 	pub fn out_range(&mut self, begin: usize, end: usize, buffer: &mut [u8]) -> Result<usize> {
-		let result = unsafe { ffi::opus_repacketizer_out_range(self.rp.ptr,
+		let result = ffi!(opus_repacketizer_out_range, self.rp.ptr,
 			begin as c_int, end as c_int,
-			buffer.as_mut_ptr(), buffer.len() as c_int) };
-		try!(check("opus_repacketizer_out_range", result));
+			buffer.as_mut_ptr(), buffer.len() as c_int);
 		Ok(result as usize)
 	}
 }
@@ -765,13 +761,5 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
 	fn description(&self) -> &str {
 		self.code.description()
-	}
-}
-
-fn check(what: &'static str, code: c_int) -> Result<()> {
-	if code < 0 {
-		Err(Error::from_code(what, code))
-	} else {
-		Ok(())
 	}
 }
