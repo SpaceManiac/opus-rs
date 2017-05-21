@@ -1,8 +1,24 @@
 extern crate opus;
 
+fn check_ascii(s: &str) -> &str {
+	for &b in s.as_bytes() {
+		assert!(b < 0x80, "Non-ASCII character in string");
+		assert!(b > 0x00, "NUL in string")
+	}
+	std::str::from_utf8(s.as_bytes()).unwrap()
+}
+
 #[test]
-fn version_ascii() {
-	println!("Opus version: {}", opus::version());
+fn strings_ascii() {
+	use opus::ErrorCode::*;
+
+	println!("\nVersion: {}", check_ascii(opus::version()));
+
+	let codes = [BadArg, BufferTooSmall, InternalError, InvalidPacket,
+		Unimplemented, InvalidState, AllocFail, Unknown];
+	for &code in codes.iter() {
+		println!("{:?}: {}", code, check_ascii(code.description()));
+	}
 }
 
 // 48000Hz * 1 channel * 20 ms / 1000
@@ -11,7 +27,7 @@ const MONO_20MS: usize = 48000 * 1 * 20 / 1000;
 #[test]
 fn encode_mono() {
 	let mut encoder = opus::Encoder::new(48000, opus::Channels::Mono, opus::Application::Audio).unwrap();
-	
+
 	let mut output = [0; 256];
 	let len = encoder.encode(&[0_i16; MONO_20MS], &mut output).unwrap();
 	assert_eq!(&output[..len], &[248, 255, 254]);
