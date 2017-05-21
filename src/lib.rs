@@ -384,8 +384,12 @@ impl Decoder {
 
 	/// Decode an Opus packet.
 	pub fn decode(&mut self, input: &[u8], output: &mut [i16], fec: bool) -> Result<usize> {
+		let ptr = match input.len() {
+			0 => std::ptr::null(),
+			_ => input.as_ptr(),
+		};
 		let len = ffi!(opus_decode, self.ptr,
-			input.as_ptr(), len(input),
+			ptr, len(input),
 			output.as_mut_ptr(), len(output) / self.channels as c_int,
 			fec as c_int);
 		Ok(len as usize)
@@ -393,8 +397,12 @@ impl Decoder {
 
 	/// Decode an Opus packet with floating point output.
 	pub fn decode_float(&mut self, input: &[u8], output: &mut [f32], fec: bool) -> Result<usize> {
+		let ptr = match input.len() {
+			0 => std::ptr::null(),
+			_ => input.as_ptr(),
+		};
 		let len = ffi!(opus_decode_float, self.ptr,
-			input.as_ptr(), len(input),
+			ptr, len(input),
 			output.as_mut_ptr(), len(output) / self.channels as c_int,
 			fec as c_int);
 		Ok(len as usize)
