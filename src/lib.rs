@@ -201,6 +201,7 @@ macro_rules! enc_ctl {
 }
 
 /// An Opus encoder with associated state.
+#[derive(Debug)]
 pub struct Encoder {
 	ptr: *mut ffi::OpusEncoder,
 	channels: Channels,
@@ -362,6 +363,7 @@ macro_rules! dec_ctl {
 }
 
 /// An Opus decoder with associated state.
+#[derive(Debug)]
 pub struct Decoder {
 	ptr: *mut ffi::OpusDecoder,
 	channels: Channels,
@@ -575,6 +577,7 @@ pub mod packet {
 	}
 
 	/// A parsed Opus packet, retuned from `parse`.
+	#[derive(Debug)]
 	pub struct Packet<'a> {
 		/// The TOC byte of the packet.
 		pub toc: u8,
@@ -606,6 +609,7 @@ pub mod packet {
 // Float Soft Clipping
 
 /// Soft-clipping to bring a float signal within the [-1,1] range.
+#[derive(Debug)]
 pub struct SoftClip {
 	channels: Channels,
 	memory: [f32; 2],
@@ -631,6 +635,7 @@ impl SoftClip {
 // Repacketizer
 
 /// A repacketizer used to merge together or split apart multiple Opus packets.
+#[derive(Debug)]
 pub struct Repacketizer {
 	ptr: *mut ffi::OpusRepacketizer,
 }
@@ -675,6 +680,7 @@ impl Drop for Repacketizer {
 // but a real Vec<&'buf [u8]> rather than unsafe blocks may be substituted.
 
 /// An in-progress repacketization.
+#[derive(Debug)]
 pub struct RepacketizerState<'rp, 'buf> {
 	rp: &'rp mut Repacketizer,
 	phantom: PhantomData<&'buf [u8]>,
