@@ -316,7 +316,7 @@ impl Encoder {
 
 	/// Enable or disable variable bitrate.
 	pub fn set_vbr(&mut self, vbr: bool) -> Result<()> {
-		let mut value: i32 = if vbr { 1 } else { 0 };
+		let value: i32 = if vbr { 1 } else { 0 };
 		enc_ctl!(self, OPUS_SET_VBR, value);
 		Ok(())
 	}
@@ -330,7 +330,7 @@ impl Encoder {
 
 	/// Enable or disable constrained VBR.
 	pub fn set_vbr_constraint(&mut self, vbr: bool) -> Result<()> {
-		let mut value: i32 = if vbr { 1 } else { 0 };
+		let value: i32 = if vbr { 1 } else { 0 };
 		enc_ctl!(self, OPUS_SET_VBR_CONSTRAINT, value);
 		Ok(())
 	}
