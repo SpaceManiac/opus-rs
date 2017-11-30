@@ -31,6 +31,10 @@ const OPUS_GET_SAMPLE_RATE: c_int = 4029; // out *i32
 // Encoder CTLs
 const OPUS_SET_BITRATE: c_int = 4002; // in i32
 const OPUS_GET_BITRATE: c_int = 4003; // out *i32
+const OPUS_SET_VBR: c_int = 4006; // in i32
+const OPUS_GET_VBR: c_int = 4007; // out *i32
+const OPUS_SET_VBR_CONSTRAINT: c_int = 4020; // in i32
+const OPUS_GET_VBR_CONSTRAINT: c_int = 4021; // out *i32
 const OPUS_SET_INBAND_FEC: c_int = 4012; // in i32
 const OPUS_GET_INBAND_FEC: c_int = 4013; // out *i32
 const OPUS_SET_PACKET_LOSS_PERC: c_int = 4014; // in i32
@@ -308,6 +312,34 @@ impl Encoder {
 			OPUS_BITRATE_MAX => Bitrate::Max,
 			_ => Bitrate::Bits(value),
 		})
+	}
+
+	/// Enable or disable variable bitrate.
+	pub fn set_vbr(&mut self, vbr: bool) -> Result<()> {
+		let mut value: i32 = if vbr { 1 } else { 0 };
+		enc_ctl!(self, OPUS_SET_VBR, value);
+		Ok(())
+	}
+
+	/// Determine if variable bitrate is enabled.
+	pub fn get_vbr(&mut self) -> Result<bool> {
+		let mut value: i32 = 0;
+		enc_ctl!(self, OPUS_GET_VBR, &mut value);
+		Ok(value != 0)
+	}
+
+	/// Enable or disable constrained VBR.
+	pub fn set_vbr_constraint(&mut self, vbr: bool) -> Result<()> {
+		let mut value: i32 = if vbr { 1 } else { 0 };
+		enc_ctl!(self, OPUS_SET_VBR_CONSTRAINT, value);
+		Ok(())
+	}
+
+	/// Determine if constrained VBR is enabled.
+	pub fn get_vbr_constraint(&mut self) -> Result<bool> {
+		let mut value: i32 = 0;
+		enc_ctl!(self, OPUS_GET_VBR_CONSTRAINT, &mut value);
+		Ok(value != 0)
 	}
 
 	/// Configures the encoder's use of inband forward error correction (FEC).
