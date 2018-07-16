@@ -385,6 +385,8 @@ impl Drop for Encoder {
 	}
 }
 
+unsafe impl Send for Encoder {}
+
 // ============================================================================
 // Decoder
 
@@ -528,6 +530,8 @@ impl Drop for Decoder {
 		unsafe { ffi::opus_decoder_destroy(self.ptr) }
 	}
 }
+
+unsafe impl Send for Decoder {}
 
 // ============================================================================
 // Packet Analysis
@@ -704,6 +708,8 @@ impl Drop for Repacketizer {
 		unsafe { ffi::opus_repacketizer_destroy(self.ptr) }
 	}
 }
+
+unsafe impl Send for Repacketizer {}
 
 // To understand why these lifetime bounds are needed, imagine that the
 // repacketizer keeps an internal Vec<&'buf [u8]>, which is added to by cat()
