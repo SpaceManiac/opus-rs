@@ -1,4 +1,4 @@
-# opus-rs [![](https://meritbadge.herokuapp.com/opus)](https://crates.io/crates/opus) [![](https://img.shields.io/badge/docs-online-2020ff.svg)](https://wombat.platymuus.com/rustdoc/opus_0.2.0/)
+# opus-rs [![](https://meritbadge.herokuapp.com/opus)](https://crates.io/crates/opus) [![](https://img.shields.io/badge/docs-online-2020ff.svg)](https://docs.rs/opus/0.2.1/opus/)
 
 Safe Rust bindings for libopus. The rustdoc (available through `cargo doc`)
 includes brief descriptions for methods, and detailed API information can be
