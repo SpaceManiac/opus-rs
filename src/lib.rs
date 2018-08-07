@@ -385,6 +385,16 @@ impl Drop for Encoder {
 	}
 }
 
+// "A single codec state may only be accessed from a single thread at
+// a time and any required locking must be performed by the caller. Separate
+// streams must be decoded with separate decoder states and can be decoded
+// in parallel unless the library was compiled with NONTHREADSAFE_PSEUDOSTACK
+// defined."
+//
+// In other words, opus states may be moved between threads at will. A special
+// compilation mode intended for embedded platforms forbids multithreaded use
+// of the library as a whole rather than on a per-state basis, but the opus-sys
+// crate does not use this mode.
 unsafe impl Send for Encoder {}
 
 // ============================================================================
@@ -531,6 +541,7 @@ impl Drop for Decoder {
 	}
 }
 
+// See `unsafe impl Send for Encoder`.
 unsafe impl Send for Decoder {}
 
 // ============================================================================
@@ -709,6 +720,7 @@ impl Drop for Repacketizer {
 	}
 }
 
+// See `unsafe impl Send for Encoder`.
 unsafe impl Send for Repacketizer {}
 
 // To understand why these lifetime bounds are needed, imagine that the
