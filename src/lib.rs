@@ -12,13 +12,11 @@
 //! the [libopus documentation](https://opus-codec.org/docs/opus_api-1.1.2/).
 #![warn(missing_docs)]
 
-extern crate opus_sys as ffi;
-extern crate libc;
+extern crate opusic_sys as ffi;
 
 use std::ffi::CStr;
 use std::marker::PhantomData;
-
-use libc::c_int;
+use std::os::raw::c_int;
 
 // ============================================================================
 // Constants
@@ -552,7 +550,6 @@ pub mod packet {
 	use super::*;
 	use super::ffi;
 	use std::{ptr, slice};
-	use libc::c_int;
 
 	/// Get the bandwidth of an Opus packet.
 	pub fn get_bandwidth(packet: &[u8]) -> Result<Bandwidth> {
