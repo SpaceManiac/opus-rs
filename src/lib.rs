@@ -246,7 +246,7 @@ impl Encoder {
 	/// Encode an Opus frame to a new buffer.
 	pub fn encode_vec(&mut self, input: &[i16], max_size: usize) -> Result<Vec<u8>> {
 		let mut output: Vec<u8> = vec![0; max_size];
-		let result = try!(self.encode(input, output.as_mut_slice()));
+		let result = self.encode(input, output.as_mut_slice())?;
 		output.truncate(result);
 		Ok(output)
 	}
@@ -254,7 +254,7 @@ impl Encoder {
 	/// Encode an Opus frame from floating point input to a new buffer.
 	pub fn encode_vec_float(&mut self, input: &[f32], max_size: usize) -> Result<Vec<u8>> {
 		let mut output: Vec<u8> = vec![0; max_size];
-		let result = try!(self.encode_float(input, output.as_mut_slice()));
+		let result = self.encode_float(input, output.as_mut_slice())?;
 		output.truncate(result);
 		Ok(output)
 	}
@@ -702,7 +702,7 @@ impl Repacketizer {
 	pub fn combine(&mut self, input: &[&[u8]], output: &mut [u8]) -> Result<usize> {
 		let mut state = self.begin();
 		for &packet in input {
-			try!(state.cat(packet));
+			state.cat(packet)?;
 		}
 		state.out(output)
 	}
@@ -748,7 +748,7 @@ impl<'rp, 'buf> RepacketizerState<'rp, 'buf> {
 	#[inline]
 	pub fn cat_move<'b2>(self, packet: &'b2 [u8]) -> Result<RepacketizerState<'rp, 'b2>> where 'buf: 'b2 {
 		let mut shorter = self;
-		try!(shorter.cat(packet));
+		shorter.cat(packet)?;
 		Ok(shorter)
 	}
 
