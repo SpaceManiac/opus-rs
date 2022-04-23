@@ -12,7 +12,7 @@
 //! the [libopus documentation](https://opus-codec.org/docs/opus_api-1.1.2/).
 #![warn(missing_docs)]
 
-extern crate opus_sys as ffi;
+extern crate audiopus_sys as ffi;
 extern crate libc;
 
 use std::ffi::CStr;
