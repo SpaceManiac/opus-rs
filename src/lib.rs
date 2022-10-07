@@ -15,6 +15,7 @@
 extern crate audiopus_sys as ffi;
 extern crate libc;
 
+use std::convert::TryFrom;
 use std::ffi::CStr;
 use std::marker::PhantomData;
 
@@ -834,11 +835,10 @@ impl std::error::Error for Error {
 }
 
 fn check_len(val: usize) -> c_int {
-	let len = val as c_int;
-	if len as usize != val {
-		panic!("length out of range: {}", val);
+	match c_int::try_from(val) {
+		Ok(val2) => val2,
+		Err(_) => panic!("length out of range: {}", val),
 	}
-	len
 }
 
 #[inline]
