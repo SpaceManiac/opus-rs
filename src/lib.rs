@@ -429,6 +429,8 @@ impl Decoder {
 	}
 
 	/// Decode an Opus packet.
+	///
+	/// To represent packet loss, pass an empty slice `&[]`.
 	pub fn decode(&mut self, input: &[u8], output: &mut [i16], fec: bool) -> Result<usize> {
 		let ptr = match input.len() {
 			0 => std::ptr::null(),
@@ -442,6 +444,8 @@ impl Decoder {
 	}
 
 	/// Decode an Opus packet with floating point output.
+	///
+	/// To represent packet loss, pass an empty slice `&[]`.
 	pub fn decode_float(&mut self, input: &[u8], output: &mut [f32], fec: bool) -> Result<usize> {
 		let ptr = match input.len() {
 			0 => std::ptr::null(),
