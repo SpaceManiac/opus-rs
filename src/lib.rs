@@ -12,13 +12,14 @@
 //! the [libopus documentation](https://opus-codec.org/docs/opus_api-1.1.2/).
 #![warn(missing_docs)]
 
-use audiopus_sys as ffi;
+mod backend;
 
 use std::convert::TryFrom;
 use std::ffi::CStr;
 use std::marker::PhantomData;
 
-use libc::c_int;
+
+use backend::{c_int, ffi, ctl};
 
 // ============================================================================
 // Constants
@@ -187,23 +188,12 @@ macro_rules! ffi {
 	}
 }
 
-macro_rules! ctl {
-	($f:ident, $this:ident, $ctl:ident, $($rest:expr),*) => {
-		match unsafe { ffi::$f($this.ptr, $ctl, $($rest),*) } {
-			code if code < 0 => return Err(Error::from_code(
-				concat!(stringify!($f), "(", stringify!($ctl), ")"),
-				code,
-			)),
-			_ => (),
-		}
-	}
-}
-
 // ============================================================================
 // Encoder
 
 macro_rules! enc_ctl {
 	($this:ident, $ctl:ident $(, $rest:expr)*) => {
+		// ctl! macro exported by the backend
 		ctl!(opus_encoder_ctl, $this, $ctl, $($rest),*)
 	}
 }
@@ -593,7 +583,7 @@ unsafe impl Send for Decoder {}
 pub mod packet {
 	use super::ffi;
 	use super::*;
-	use libc::c_int;
+	use backend::c_int;
 	use std::{ptr, slice};
 
 	/// Get the bandwidth of an Opus packet.

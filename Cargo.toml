@@ -15,5 +15,12 @@ repository = "https://github.com/SpaceManiac/opus-rs"
 documentation = "https://docs.rs/opus/0.3.0/opus"
 
 [dependencies]
-audiopus_sys = "0.2.0"
-libc = "0.2"
+audiopus_sys = { version = "0.2.0", optional = true }
+libc = { version = "0.2", optional = true }
+unsafe-libopus = { version = "0.1.0", optional = true }
+cfg-if = "1.0.0"
+
+[features]
+default = ["audiopus-sys-backend"]
+audiopus-sys-backend = ["audiopus_sys", "libc"]
+unsafe-libopus-backend = ["unsafe-libopus"]
