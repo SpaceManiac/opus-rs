@@ -2,6 +2,7 @@
 name = "opus"
 version = "0.3.0"
 authors = ["Tad Hardesty <tad@platymuus.com>"]
+edition = "2021"
 
 description = "Safe Rust bindings for libopus"
 readme = "README.md"

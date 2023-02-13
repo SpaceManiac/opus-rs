@@ -12,8 +12,7 @@
 //! the [libopus documentation](https://opus-codec.org/docs/opus_api-1.1.2/).
 #![warn(missing_docs)]
 
-extern crate audiopus_sys as ffi;
-extern crate libc;
+use audiopus_sys as ffi;
 
 use std::convert::TryFrom;
 use std::ffi::CStr;
@@ -138,7 +137,7 @@ pub enum ErrorCode {
 
 impl ErrorCode {
 	fn from_int(value: c_int) -> ErrorCode {
-		use ErrorCode::*;
+		use crate::ErrorCode::*;
 		match value {
 			ffi::OPUS_BAD_ARG => BadArg,
 			ffi::OPUS_BUFFER_TOO_SMALL => BufferTooSmall,
