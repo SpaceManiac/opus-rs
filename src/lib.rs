@@ -35,6 +35,8 @@ const OPUS_SET_BITRATE: c_int = 4002; // in i32
 const OPUS_GET_BITRATE: c_int = 4003; // out *i32
 const OPUS_SET_VBR: c_int = 4006; // in i32
 const OPUS_GET_VBR: c_int = 4007; // out *i32
+const OPUS_SET_COMPLEXITY_REQUEST: c_int = 4010; // in i32
+const OPUS_GET_COMPLEXITY_REQUEST: c_int = 4011; // out *i32
 const OPUS_SET_VBR_CONSTRAINT: c_int = 4020; // in i32
 const OPUS_GET_VBR_CONSTRAINT: c_int = 4021; // out *i32
 const OPUS_SET_INBAND_FEC: c_int = 4012; // in i32
@@ -385,6 +387,20 @@ impl Encoder {
 	pub fn get_dtx(&mut self) -> Result<bool> {
 		let mut value: i32 = 0;
 		enc_ctl!(self, OPUS_GET_DTX_REQUEST, &mut value);
+		Ok(value != 0)
+	}
+
+	/// Configures the encoder's computational complexity.
+	pub fn set_complexity(&mut self, value: bool) -> Result<()> {
+		let value: i32 = if value { 1 } else { 0 };
+		enc_ctl!(self, OPUS_SET_COMPLEXITY_REQUEST, value);
+		Ok(())
+	}
+
+	/// Gets the encoder's complexity configuration.
+	pub fn get_complexity(&mut self) -> Result<bool> {
+		let mut value: i32 = 0;
+		enc_ctl!(self, OPUS_GET_COMPLEXITY_REQUEST, &mut value);
 		Ok(value != 0)
 	}
 
