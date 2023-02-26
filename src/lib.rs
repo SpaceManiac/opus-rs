@@ -391,17 +391,16 @@ impl Encoder {
 	}
 
 	/// Configures the encoder's computational complexity.
-	pub fn set_complexity(&mut self, value: bool) -> Result<()> {
-		let value: i32 = if value { 1 } else { 0 };
+	pub fn set_complexity(&mut self, value: i32) -> Result<()> {
 		enc_ctl!(self, OPUS_SET_COMPLEXITY_REQUEST, value);
 		Ok(())
 	}
 
 	/// Gets the encoder's complexity configuration.
-	pub fn get_complexity(&mut self) -> Result<bool> {
+	pub fn get_complexity(&mut self) -> Result<i32> {
 		let mut value: i32 = 0;
 		enc_ctl!(self, OPUS_GET_COMPLEXITY_REQUEST, &mut value);
-		Ok(value != 0)
+		Ok(value)
 	}
 
 	/// Sets the encoder's expected packet loss percentage.
