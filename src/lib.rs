@@ -13,13 +13,11 @@
 #![warn(missing_docs)]
 
 extern crate audiopus_sys as ffi;
-extern crate libc;
 
 use std::convert::TryFrom;
 use std::ffi::CStr;
+use std::os::raw::c_int;
 use std::marker::PhantomData;
-
-use libc::c_int;
 
 // ============================================================================
 // Constants
@@ -609,7 +607,6 @@ unsafe impl Send for Decoder {}
 pub mod packet {
 	use super::ffi;
 	use super::*;
-	use libc::c_int;
 	use std::{ptr, slice};
 
 	/// Get the bandwidth of an Opus packet.

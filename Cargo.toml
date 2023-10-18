@@ -15,4 +15,3 @@ documentation = "https://docs.rs/opus/0.3.0/opus"
 
 [dependencies]
 audiopus_sys = "0.2.0"
-libc = "0.2"
