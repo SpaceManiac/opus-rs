@@ -119,21 +119,22 @@ impl Bandwidth {
 
 /// Possible error codes.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[repr(i32)]
 pub enum ErrorCode {
 	/// One or more invalid/out of range arguments.
-	BadArg = -1,
+	BadArg = ffi::OPUS_BAD_ARG,
 	/// Not enough bytes allocated in the buffer.
-	BufferTooSmall = -2,
+	BufferTooSmall = ffi::OPUS_BUFFER_TOO_SMALL,
 	/// An internal error was detected.
-	InternalError = -3,
+	InternalError = ffi::OPUS_INTERNAL_ERROR,
 	/// The compressed data passed is corrupted.
-	InvalidPacket = -4,
+	InvalidPacket = ffi::OPUS_INVALID_PACKET,
 	/// Invalid/unsupported request number.
-	Unimplemented = -5,
+	Unimplemented = ffi::OPUS_UNIMPLEMENTED,
 	/// An encoder or decoder structure is invalid or already freed.
-	InvalidState = -6,
+	InvalidState = ffi::OPUS_INVALID_STATE,
 	/// Memory allocation has failed.
-	AllocFail = -7,
+	AllocFail = ffi::OPUS_ALLOC_FAIL,
 	/// An unknown failure.
 	Unknown = -8,
 }
