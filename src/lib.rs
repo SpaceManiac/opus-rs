@@ -139,6 +139,24 @@ pub enum Bitrate {
 	Auto,
 }
 
+impl Bitrate {
+	fn from_raw(raw: c_int) -> Result<Bitrate> {
+		Ok(match raw {
+			ffi::OPUS_AUTO => Bitrate::Auto,
+			ffi::OPUS_BITRATE_MAX => Bitrate::Max,
+			_ => Bitrate::Bits(raw),
+		})
+	}
+
+	fn raw(self) -> c_int {
+		match self {
+			Bitrate::Auto => ffi::OPUS_AUTO,
+			Bitrate::Max => ffi::OPUS_BITRATE_MAX,
+			Bitrate::Bits(raw) => raw,
+		}
+	}
+}
+
 /// Get the libopus version string.
 ///
 /// Applications may look for the substring "-fixed" in the version string to
@@ -282,12 +300,7 @@ impl Encoder {
 
 	/// Set the encoder's bitrate.
 	pub fn set_bitrate(&mut self, value: Bitrate) -> Result<()> {
-		let value: i32 = match value {
-			Bitrate::Auto => ffi::OPUS_AUTO,
-			Bitrate::Max => ffi::OPUS_BITRATE_MAX,
-			Bitrate::Bits(b) => b,
-		};
-		enc_ctl!(self, ffi::OPUS_SET_BITRATE_REQUEST, value);
+		enc_ctl!(self, ffi::OPUS_SET_BITRATE_REQUEST, value.raw());
 		Ok(())
 	}
 
@@ -295,11 +308,7 @@ impl Encoder {
 	pub fn get_bitrate(&mut self) -> Result<Bitrate> {
 		let mut value: i32 = 0;
 		enc_ctl!(self, ffi::OPUS_GET_BITRATE_REQUEST, &mut value);
-		Ok(match value {
-			ffi::OPUS_AUTO => Bitrate::Auto,
-			ffi::OPUS_BITRATE_MAX => Bitrate::Max,
-			_ => Bitrate::Bits(value),
-		})
+		Bitrate::from_raw(value)
 	}
 
 	/// Enable or disable variable bitrate.
