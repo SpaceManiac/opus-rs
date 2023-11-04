@@ -80,30 +80,31 @@ pub enum Channels {
 
 /// The available bandwidth level settings.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+#[repr(i32)]
 pub enum Bandwidth {
 	/// Auto/default setting.
-	Auto = -1000,
+	Auto = ffi::OPUS_AUTO,
 	/// 4kHz bandpass.
-	Narrowband = 1101,
+	Narrowband = ffi::OPUS_BANDWIDTH_NARROWBAND,
 	/// 6kHz bandpass.
-	Mediumband = 1102,
+	Mediumband = ffi::OPUS_BANDWIDTH_MEDIUMBAND,
 	/// 8kHz bandpass.
-	Wideband = 1103,
+	Wideband = ffi::OPUS_BANDWIDTH_WIDEBAND,
 	/// 12kHz bandpass.
-	Superwideband = 1104,
+	Superwideband = ffi::OPUS_BANDWIDTH_SUPERWIDEBAND,
 	/// 20kHz bandpass.
-	Fullband = 1105,
+	Fullband = ffi::OPUS_BANDWIDTH_FULLBAND,
 }
 
 impl Bandwidth {
 	fn from_int(value: i32) -> Option<Bandwidth> {
 		Some(match value {
-			-1000 => Bandwidth::Auto,
-			1101 => Bandwidth::Narrowband,
-			1102 => Bandwidth::Mediumband,
-			1103 => Bandwidth::Wideband,
-			1104 => Bandwidth::Superwideband,
-			1105 => Bandwidth::Fullband,
+			ffi::OPUS_AUTO => Bandwidth::Auto,
+			ffi::OPUS_BANDWIDTH_NARROWBAND => Bandwidth::Narrowband,
+			ffi::OPUS_BANDWIDTH_MEDIUMBAND => Bandwidth::Mediumband,
+			ffi::OPUS_BANDWIDTH_WIDEBAND => Bandwidth::Wideband,
+			ffi::OPUS_BANDWIDTH_SUPERWIDEBAND => Bandwidth::Superwideband,
+			ffi::OPUS_BANDWIDTH_FULLBAND => Bandwidth::Fullband,
 			_ => return None,
 		})
 	}
