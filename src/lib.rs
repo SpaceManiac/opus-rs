@@ -189,7 +189,7 @@ macro_rules! ffi {
 }
 
 macro_rules! ctl {
-	($f:ident, $this:ident, $ctl:ident, $($rest:expr),*) => {
+	($f:ident, $this:ident, $ctl:path, $($rest:expr),*) => {
 		match unsafe { ffi::$f($this.ptr, $ctl, $($rest),*) } {
 			code if code < 0 => return Err(Error::from_code(
 				concat!(stringify!($f), "(", stringify!($ctl), ")"),
@@ -204,7 +204,7 @@ macro_rules! ctl {
 // Encoder
 
 macro_rules! enc_ctl {
-	($this:ident, $ctl:ident $(, $rest:expr)*) => {
+	($this:ident, $ctl:path $(, $rest:expr)*) => {
 		ctl!(opus_encoder_ctl, $this, $ctl, $($rest),*)
 	}
 }
@@ -419,6 +419,34 @@ impl Encoder {
 		let mut value: i32 = 0;
 		enc_ctl!(self, OPUS_GET_LOOKAHEAD, &mut value);
 		Ok(value)
+	}
+
+	/// Configures mono/stereo forcing in the encoder.
+	///
+	/// This can force the encoder to produce packets encoded as either mono or
+	/// stereo, regardless of the format of the input audio. This is useful
+	/// when the caller knows that the input signal is currently a mono source
+	/// embedded in a stereo stream.
+	pub fn set_force_channels(&mut self, value: Option<Channels>) -> Result<()> {
+		let value = match value {
+			None => ffi::OPUS_AUTO,
+			Some(Channels::Mono) => 1,
+			Some(Channels::Stereo) => 2,
+		};
+		enc_ctl!(self, ffi::OPUS_SET_FORCE_CHANNELS_REQUEST, value);
+		Ok(())
+	}
+
+	/// Gets the encoder's forced channel configuration.
+	pub fn get_force_channels(&mut self) -> Result<Option<Channels>> {
+		let mut value: i32 = 0;
+		enc_ctl!(self, ffi::OPUS_GET_FORCE_CHANNELS_REQUEST, &mut value);
+		match value {
+			OPUS_AUTO => Ok(None),
+			1 => Ok(Some(Channels::Mono)),
+			2 => Ok(Some(Channels::Stereo)),
+			_ => Err(Error::bad_arg("opus_encoder_ctl(OPUS_GET_FORCE_CHANNELS)")),
+		}
 	}
 
 	// TODO: Encoder-specific CTLs
