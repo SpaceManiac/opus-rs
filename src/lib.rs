@@ -57,15 +57,16 @@ const OPUS_BITRATE_MAX: c_int = -1;
 
 /// The possible applications for the codec.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+#[repr(i32)]
 pub enum Application {
 	/// Best for most VoIP/videoconference applications where listening quality
 	/// and intelligibility matter most.
-	Voip = 2048,
+	Voip = ffi::OPUS_APPLICATION_VOIP,
 	/// Best for broadcast/high-fidelity application where the decoded audio
 	/// should be as close as possible to the input.
-	Audio = 2049,
+	Audio = ffi::OPUS_APPLICATION_AUDIO,
 	/// Only use when lowest-achievable latency is what matters most.
-	LowDelay = 2051,
+	LowDelay = ffi::OPUS_APPLICATION_RESTRICTED_LOWDELAY,
 }
 
 /// The available channel setings.
