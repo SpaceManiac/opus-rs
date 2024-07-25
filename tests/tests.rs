@@ -22,7 +22,7 @@ fn strings_ascii() {
 }
 
 // 48000Hz * 1 channel * 20 ms / 1000 = 960
-const MONO_20MS: usize = 48000 * 1 * 20 / 1000;
+const MONO_20MS: usize = 48000 * 20 / 1000;
 
 #[test]
 fn encode_mono() {

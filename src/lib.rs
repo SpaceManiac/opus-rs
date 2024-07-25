@@ -219,7 +219,7 @@ impl Encoder {
 		if error != ffi::OPUS_OK || ptr.is_null() {
 			Err(Error::from_code("opus_encoder_create", error))
 		} else {
-			Ok(Encoder { ptr: ptr, channels: channels })
+			Ok(Encoder { ptr, channels })
 		}
 	}
 
@@ -474,7 +474,7 @@ impl Decoder {
 		if error != ffi::OPUS_OK || ptr.is_null() {
 			Err(Error::from_code("opus_decoder_create", error))
 		} else {
-			Ok(Decoder { ptr: ptr, channels: channels })
+			Ok(Decoder { ptr, channels })
 		}
 	}
 
@@ -624,7 +624,7 @@ pub mod packet {
 
 	/// Get the bandwidth of an Opus packet.
 	pub fn get_bandwidth(packet: &[u8]) -> Result<Bandwidth> {
-		if packet.len() < 1 {
+		if packet.is_empty() {
 			return Err(Error::bad_arg("opus_packet_get_bandwidth"));
 		}
 		let bandwidth = ffi!(opus_packet_get_bandwidth, packet.as_ptr());
@@ -633,7 +633,7 @@ pub mod packet {
 
 	/// Get the number of channels from an Opus packet.
 	pub fn get_nb_channels(packet: &[u8]) -> Result<Channels> {
-		if packet.len() < 1 {
+		if packet.is_empty() {
 			return Err(Error::bad_arg("opus_packet_get_nb_channels"));
 		}
 		let channels = ffi!(opus_packet_get_nb_channels, packet.as_ptr());
@@ -659,7 +659,7 @@ pub mod packet {
 
 	/// Get the number of samples per frame from an Opus packet.
 	pub fn get_samples_per_frame(packet: &[u8], sample_rate: u32) -> Result<usize> {
-		if packet.len() < 1 {
+		if packet.is_empty() {
 			return Err(Error::bad_arg("opus_packet_get_samples_per_frame"));
 		}
 		let samples =
@@ -689,7 +689,7 @@ pub mod packet {
 		}
 
 		Ok(Packet {
-			toc: toc,
+			toc,
 			frames: frames_vec,
 			payload_offset: payload_offset as usize,
 		})
@@ -736,7 +736,7 @@ pub struct SoftClip {
 impl SoftClip {
 	/// Initialize a new soft-clipping state.
 	pub fn new(channels: Channels) -> SoftClip {
-		SoftClip { channels: channels, memory: [0.0; 2] }
+		SoftClip { channels, memory: [0.0; 2] }
 	}
 
 	/// Apply soft-clipping to a float signal.
@@ -768,7 +768,7 @@ impl Repacketizer {
 		if ptr.is_null() {
 			Err(Error::from_code("opus_repacketizer_create", ffi::OPUS_ALLOC_FAIL))
 		} else {
-			Ok(Repacketizer { ptr: ptr })
+			Ok(Repacketizer { ptr })
 		}
 	}
 
@@ -782,6 +782,7 @@ impl Repacketizer {
 	}
 
 	/// Begin using the repacketizer.
+	#[allow(clippy::needless_lifetimes)]
 	pub fn begin<'rp, 'buf>(&'rp mut self) -> RepacketizerState<'rp, 'buf> {
 		unsafe {
 			ffi::opus_repacketizer_init(self.ptr);
