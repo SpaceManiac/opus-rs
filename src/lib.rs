@@ -481,6 +481,9 @@ impl Decoder {
 	/// Decode an Opus packet.
 	///
 	/// To represent packet loss, pass an empty slice `&[]`.
+	///
+	/// The return value is the number of samples *per channel* decoded from
+	/// the packet.
 	pub fn decode(&mut self, input: &[u8], output: &mut [i16], fec: bool) -> Result<usize> {
 		let ptr = match input.len() {
 			0 => std::ptr::null(),
@@ -501,6 +504,9 @@ impl Decoder {
 	/// Decode an Opus packet with floating point output.
 	///
 	/// To represent packet loss, pass an empty slice `&[]`.
+	///
+	/// The return value is the number of samples *per channel* decoded from
+	/// the packet.
 	pub fn decode_float(&mut self, input: &[u8], output: &mut [f32], fec: bool) -> Result<usize> {
 		let ptr = match input.len() {
 			0 => std::ptr::null(),
@@ -518,7 +524,7 @@ impl Decoder {
 		Ok(len as usize)
 	}
 
-	/// Get the number of samples of an Opus packet.
+	/// Get the number of samples *per channel* of an Opus packet.
 	pub fn get_nb_samples(&self, packet: &[u8]) -> Result<usize> {
 		let len = ffi!(opus_decoder_get_nb_samples, self.ptr, packet.as_ptr(), packet.len() as i32);
 		Ok(len as usize)

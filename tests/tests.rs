@@ -21,7 +21,7 @@ fn strings_ascii() {
 	}
 }
 
-// 48000Hz * 1 channel * 20 ms / 1000
+// 48000Hz * 1 channel * 20 ms / 1000 = 960
 const MONO_20MS: usize = 48000 * 1 * 20 / 1000;
 
 #[test]
@@ -68,6 +68,32 @@ fn encode_stereo() {
 
 	let myvec = encoder.encode_vec(&[95_i16; 2 * MONO_20MS], 20).unwrap();
 	assert!(myvec.len() <= 20);
+}
+
+#[test]
+fn encode_decode_stereo() {
+	let mut opus_encoder =
+		opus::Encoder::new(48000, opus::Channels::Stereo, opus::Application::Voip).unwrap();
+	let mut opus_decoder = opus::Decoder::new(48000, opus::Channels::Stereo).unwrap();
+	let mut pcm_raw_data = vec![17_i16; MONO_20MS * 2];
+	pcm_raw_data[1] = 1;
+
+	let mut encoded_opus = vec![0; 1500];
+	let size = opus_encoder.encode(&pcm_raw_data, &mut encoded_opus).unwrap();
+	let packet = &encoded_opus[..size];
+	dbg!(size);
+
+	// get_nb_samples() returns the number of samples per channel. To get the
+	// total sample count, multiply by the number of channels.
+	assert_eq!(MONO_20MS, opus_decoder.get_nb_samples(packet).unwrap());
+	assert_eq!(MONO_20MS, opus::packet::get_nb_samples(packet, 48000).unwrap());
+	assert_eq!(1, opus::packet::get_nb_frames(packet).unwrap());
+	assert_eq!(opus::Channels::Stereo, opus::packet::get_nb_channels(packet).unwrap());
+	assert_eq!(MONO_20MS, opus::packet::get_samples_per_frame(packet, 48000).unwrap());
+
+	let mut output = vec![0i16; MONO_20MS * 2];
+	// decode() returns the number of samples per channel.
+	assert_eq!(MONO_20MS, opus_decoder.decode(packet, &mut output, false).unwrap());
 }
 
 #[test]
