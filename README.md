@@ -4,6 +4,15 @@ Safe Rust bindings for libopus. The rustdoc (available through `cargo doc`)
 includes brief descriptions for methods, and detailed API information can be
 found at the [libopus documentation](https://opus-codec.org/docs/opus_api-1.1.2/).
 
+## External dependencies
+
+By default, you need either:
+
+* cmake, make, and a C compiler
+* pkg-config and opus headers/libraries
+
+These requirements come from [audiopus_sys](https://crates.io/crates/audiopus_sys), where details about overriding these defaults can be found.
+
 ## License
 
 Licensed under either of
