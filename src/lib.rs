@@ -16,8 +16,10 @@ extern crate audiopus_sys as ffi;
 
 use std::convert::TryFrom;
 use std::ffi::CStr;
-use std::os::raw::c_int;
 use std::marker::PhantomData;
+use std::os::raw::c_int;
+
+use ffi::{opus_multistream_decoder_destroy, opus_multistream_encoder_destroy};
 
 // ============================================================================
 // Constants
@@ -863,7 +865,189 @@ impl<'rp, 'buf> RepacketizerState<'rp, 'buf> {
 }
 
 // ============================================================================
-// TODO: Multistream API
+// Multistream API
+
+/// Combine individual Opus streams in a single packet, up to 255 channels.
+///
+/// See: https://opus-codec.org/docs/opus_api-1.5/group__opus__multistream.html
+#[derive(Debug)]
+pub struct MSEncoder {
+	ptr: *mut ffi::OpusMSEncoder,
+	channels: c_int,
+}
+
+impl Drop for MSEncoder {
+	fn drop(&mut self) {
+		unsafe { opus_multistream_encoder_destroy(self.ptr) }
+	}
+}
+
+// See `unsafe impl Send for Encoder`.
+unsafe impl Send for MSEncoder {}
+
+impl MSEncoder {
+	/// Create and initialize a multistream encoder.
+	pub fn new(
+		sample_rate: u32,
+		streams: u8,
+		coupled_streams: u8,
+		mapping: &[u8],
+		application: Application,
+	) -> Result<MSEncoder> {
+		let mut error = 0;
+		let ptr = unsafe {
+			ffi::opus_multistream_encoder_create(
+				sample_rate as i32,
+				len(mapping),
+				streams as c_int,
+				coupled_streams as c_int,
+				mapping.as_ptr(),
+				application as c_int,
+				&mut error,
+			)
+		};
+		if error != ffi::OPUS_OK || ptr.is_null() {
+			Err(Error::from_code("opus_multistream_encoder_create", error))
+		} else {
+			Ok(MSEncoder { ptr, channels: len(mapping) })
+		}
+	}
+
+	// TODO: new_surround -> opus_multistream_encoder_create, but it's missing
+	// Doxygen comments.
+
+	/// Encode an Opus frame.
+	pub fn encode(&mut self, input: &[i16], output: &mut [u8]) -> Result<usize> {
+		let len = ffi!(
+			opus_multistream_encode,
+			self.ptr,
+			input.as_ptr(),
+			len(input) / self.channels as c_int,
+			output.as_mut_ptr(),
+			len(output)
+		);
+		Ok(len as usize)
+	}
+
+	/// Encode an Opus frame from floating point input.
+	pub fn encode_float(&mut self, input: &[f32], output: &mut [u8]) -> Result<usize> {
+		let len = ffi!(
+			opus_multistream_encode_float,
+			self.ptr,
+			input.as_ptr(),
+			len(input) / self.channels as c_int,
+			output.as_mut_ptr(),
+			len(output)
+		);
+		Ok(len as usize)
+	}
+
+	/// Encode an Opus frame to a new buffer.
+	pub fn encode_vec(&mut self, input: &[i16], max_size: usize) -> Result<Vec<u8>> {
+		let mut output: Vec<u8> = vec![0; max_size];
+		let result = self.encode(input, output.as_mut_slice())?;
+		output.truncate(result);
+		Ok(output)
+	}
+
+	/// Encode an Opus frame from floating point input to a new buffer.
+	pub fn encode_vec_float(&mut self, input: &[f32], max_size: usize) -> Result<Vec<u8>> {
+		let mut output: Vec<u8> = vec![0; max_size];
+		let result = self.encode_float(input, output.as_mut_slice())?;
+		output.truncate(result);
+		Ok(output)
+	}
+
+	// TODO: Generic CTLs
+	// TODO: Encoder CTLs
+}
+
+
+/// Decode packets into many Opus streams, up to 255.
+///
+/// See: https://opus-codec.org/docs/opus_api-1.5/group__opus__multistream.html
+#[derive(Debug)]
+pub struct MSDecoder {
+	ptr: *mut ffi::OpusMSDecoder,
+	channels: c_int,
+}
+
+impl Drop for MSDecoder {
+	fn drop(&mut self) {
+		unsafe { opus_multistream_decoder_destroy(self.ptr) }
+	}
+}
+
+// See `unsafe impl Send for Encoder`.
+unsafe impl Send for MSDecoder {}
+
+impl MSDecoder {
+	/// Create and initialize a multistream encoder.
+	pub fn new(
+		sample_rate: u32,
+		streams: u8,
+		coupled_streams: u8,
+		mapping: &[u8],
+	) -> Result<MSDecoder> {
+		let mut error = 0;
+		let ptr = unsafe {
+			ffi::opus_multistream_decoder_create(
+				sample_rate as i32,
+				len(mapping),
+				streams as c_int,
+				coupled_streams as c_int,
+				mapping.as_ptr(),
+				&mut error,
+			)
+		};
+		if error != ffi::OPUS_OK || ptr.is_null() {
+			Err(Error::from_code("opus_multistream_decoder_create", error))
+		} else {
+			Ok(MSDecoder { ptr, channels: len(mapping) })
+		}
+	}
+
+	/// Decode a multistream Opus packet.
+	///
+	/// To represent packet loss, pass an empty slice `&[]`.
+	pub fn decode(&mut self, input: &[u8], output: &mut [i16], fec: bool) -> Result<usize> {
+		let ptr = match input.len() {
+			0 => std::ptr::null(),
+			_ => input.as_ptr(),
+		};
+		let len = ffi!(
+			opus_multistream_decode,
+			self.ptr,
+			ptr,
+			len(input),
+			output.as_mut_ptr(),
+			len(output) / self.channels as c_int,
+			fec as c_int
+		);
+		Ok(len as usize)
+	}
+
+	/// Decode a multistream Opus packet with floating point output.
+	pub fn decode_float(&mut self, input: &[u8], output: &mut [f32], fec: bool) -> Result<usize> {
+		let ptr = match input.len() {
+			0 => std::ptr::null(),
+			_ => input.as_ptr(),
+		};
+		let len = ffi!(
+			opus_multistream_decode_float,
+			self.ptr,
+			ptr,
+			len(input),
+			output.as_mut_ptr(),
+			len(output) / self.channels as c_int,
+			fec as c_int
+		);
+		Ok(len as usize)
+	}
+
+	// TODO: Generic CTLs
+	// TODO: Decoder CTLs
+}
 
 // ============================================================================
 // Error Handling
