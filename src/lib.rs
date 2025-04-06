@@ -716,6 +716,22 @@ pub mod packet {
 		let result = ffi!(opus_packet_unpad, packet.as_mut_ptr(), len(packet));
 		Ok(result as usize)
 	}
+
+	/// Pad a given Opus multi-stream packet to a larger size.
+	///
+	/// The packet will be extended from the first `prev_len` bytes of the
+	/// buffer into the rest of the available space.
+	pub fn multistream_pad(packet: &mut [u8], prev_len: usize, nb_streams: u8) -> Result<usize> {
+		let result = ffi!(opus_multistream_packet_pad, packet.as_mut_ptr(), check_len(prev_len), len(packet), nb_streams as c_int);
+		Ok(result as usize)
+	}
+
+	/// Remove all padding from a given Opus multi-stream packet and rewrite
+	/// the TOC sequence to minimize space usage.
+	pub fn multistream_unpad(packet: &mut [u8], nb_streams: u8) -> Result<usize> {
+		let result = ffi!(opus_multistream_packet_unpad, packet.as_mut_ptr(), len(packet), nb_streams as c_int);
+		Ok(result as usize)
+	}
 }
 
 // ============================================================================
