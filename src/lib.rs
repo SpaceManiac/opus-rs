@@ -6,10 +6,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! High-level bindings for libopus.
+//! High-level bindings for [libopus](https://opus-codec.org/).
 //!
 //! Only brief descriptions are included here. For detailed information, consult
-//! the [libopus documentation](https://opus-codec.org/docs/opus_api-1.1.2/).
+//! the [libopus documentation](https://opus-codec.org/docs/opus_api-1.5/).
 #![warn(missing_docs)]
 
 extern crate audiopus_sys as ffi;

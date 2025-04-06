@@ -1,15 +1,21 @@
-# opus-rs [![](https://meritbadge.herokuapp.com/opus)](https://crates.io/crates/opus) [![](https://img.shields.io/badge/docs-online-2020ff.svg)](https://docs.rs/opus/0.2.1/opus/)
+# opus-rs
 
-Safe Rust bindings for libopus. The rustdoc (available through `cargo doc`)
+Safe Rust bindings for [libopus](https://opus-codec.org/). The rustdoc
 includes brief descriptions for methods, and detailed API information can be
-found at the [libopus documentation](https://opus-codec.org/docs/opus_api-1.1.2/).
+found at the [libopus documentation][upstream docs].
+
+[crates.io] - [docs.rs] - [upstream docs]
+
+[crates.io]: https://crates.io/crates/opus
+[docs.rs]: https://docs.rs/opus/
+[upstream docs]: https://opus-codec.org/docs/opus_api-1.5/
 
 ## External dependencies
 
 By default, you need either:
 
-* cmake, make, and a C compiler
 * pkg-config and opus headers/libraries
+* cmake, make, and a C compiler
 
 These requirements come from [audiopus_sys](https://crates.io/crates/audiopus_sys), where details about overriding these defaults can be found.
 
