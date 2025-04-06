@@ -227,7 +227,7 @@ macro_rules! generic_ctls {
 			// TODO(#5): OPUS_SET/GET_PHASE_INVERSION_DISABLED (since Opus 1.3)
 			// TODO(#5): OPUS_GET_IN_DTX (since Opus 1.3)
 		}
-	}
+	};
 }
 
 // ============================================================================
@@ -467,7 +467,7 @@ macro_rules! encoder_ctls {
 			// TODO(#5): OPUS_SET/GET_DRED_DURATION (since Opus 1.5)
 			// TODO(#5): OPUS_SET_DNN_BLOB (since Opus 1.5)
 		}
-	}
+	};
 }
 
 generic_ctls!(Encoder, opus_encoder_ctl);
@@ -602,7 +602,7 @@ macro_rules! decoder_ctls {
 				Ok(value)
 			}
 		}
-	}
+	};
 }
 
 generic_ctls!(Decoder, opus_decoder_ctl);
@@ -722,14 +722,25 @@ pub mod packet {
 	/// The packet will be extended from the first `prev_len` bytes of the
 	/// buffer into the rest of the available space.
 	pub fn multistream_pad(packet: &mut [u8], prev_len: usize, nb_streams: u8) -> Result<usize> {
-		let result = ffi!(opus_multistream_packet_pad, packet.as_mut_ptr(), check_len(prev_len), len(packet), nb_streams as c_int);
+		let result = ffi!(
+			opus_multistream_packet_pad,
+			packet.as_mut_ptr(),
+			check_len(prev_len),
+			len(packet),
+			nb_streams as c_int
+		);
 		Ok(result as usize)
 	}
 
 	/// Remove all padding from a given Opus multi-stream packet and rewrite
 	/// the TOC sequence to minimize space usage.
 	pub fn multistream_unpad(packet: &mut [u8], nb_streams: u8) -> Result<usize> {
-		let result = ffi!(opus_multistream_packet_unpad, packet.as_mut_ptr(), len(packet), nb_streams as c_int);
+		let result = ffi!(
+			opus_multistream_packet_unpad,
+			packet.as_mut_ptr(),
+			len(packet),
+			nb_streams as c_int
+		);
 		Ok(result as usize)
 	}
 }

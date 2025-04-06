@@ -14,8 +14,16 @@ fn strings_ascii() {
 
 	println!("\nVersion: {}", check_ascii(opus::version()));
 
-	let codes = [BadArg, BufferTooSmall, InternalError, InvalidPacket,
-		Unimplemented, InvalidState, AllocFail, Unknown];
+	let codes = [
+		BadArg,
+		BufferTooSmall,
+		InternalError,
+		InvalidPacket,
+		Unimplemented,
+		InvalidState,
+		AllocFail,
+		Unknown,
+	];
 	for &code in codes.iter() {
 		println!("{:?}: {}", code, check_ascii(code.description()));
 	}
@@ -26,7 +34,8 @@ const MONO_20MS: usize = 48000 * 20 / 1000;
 
 #[test]
 fn encode_mono() {
-	let mut encoder = opus::Encoder::new(48000, opus::Channels::Mono, opus::Application::Audio).unwrap();
+	let mut encoder =
+		opus::Encoder::new(48000, opus::Channels::Mono, opus::Application::Audio).unwrap();
 
 	let mut output = [0; 256];
 	let len = encoder.encode(&[0_i16; MONO_20MS], &mut output).unwrap();
@@ -47,7 +56,8 @@ fn encode_mono() {
 
 #[test]
 fn encode_stereo() {
-	let mut encoder = opus::Encoder::new(48000, opus::Channels::Stereo, opus::Application::Audio).unwrap();
+	let mut encoder =
+		opus::Encoder::new(48000, opus::Channels::Stereo, opus::Application::Audio).unwrap();
 
 	let mut output = [0; 512];
 	let len = encoder.encode(&[0_i16; 2 * MONO_20MS], &mut output).unwrap();
@@ -106,7 +116,8 @@ fn encode_bad_rate() {
 
 #[test]
 fn encode_bad_buffer() {
-	let mut encoder = opus::Encoder::new(48000, opus::Channels::Stereo, opus::Application::Audio).unwrap();
+	let mut encoder =
+		opus::Encoder::new(48000, opus::Channels::Stereo, opus::Application::Audio).unwrap();
 	match encoder.encode(&[1_i16; 2 * MONO_20MS], &mut [0; 0]) {
 		Ok(_) => panic!("encode with 0-length buffer did not return BadArg"),
 		Err(err) => assert_eq!(err.code(), opus::ErrorCode::BadArg),
@@ -133,21 +144,22 @@ fn repacketizer() {
 		let state = rp.begin().cat_move(&packet).unwrap();
 		let packet = [249, 255, 254, 255, 254];
 		let state = state.cat_move(&packet).unwrap();
-		let len = {state}.out(&mut out).unwrap();
+		let len = { state }.out(&mut out).unwrap();
 		assert_eq!(&out[..len], &[251, 3, 255, 254, 255, 254, 255, 254]);
 	}
 	for _ in 0..2 {
-		let len = rp.combine(&[
-			&[249, 255, 254, 255, 254],
-			&[248, 255, 254],
-		], &mut out).unwrap();
+		let len = rp.combine(&[&[249, 255, 254, 255, 254], &[248, 255, 254]], &mut out).unwrap();
 		assert_eq!(&out[..len], &[251, 3, 255, 254, 255, 254, 255, 254]);
 	}
 	for _ in 0..2 {
-		let len = rp.begin()
-			.cat_move(&[248, 255, 254]).unwrap()
-			.cat_move(&[248, 71, 71]).unwrap()
-			.out(&mut out).unwrap();
+		let len = rp
+			.begin()
+			.cat_move(&[248, 255, 254])
+			.unwrap()
+			.cat_move(&[248, 71, 71])
+			.unwrap()
+			.out(&mut out)
+			.unwrap();
 		assert_eq!(&out[..len], &[249, 255, 254, 71, 71]);
 	}
 }
