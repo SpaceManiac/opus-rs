@@ -19,8 +19,6 @@ use std::ffi::CStr;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
 
-use ffi::{opus_multistream_decoder_destroy, opus_multistream_encoder_destroy};
-
 // ============================================================================
 // Constants
 
@@ -901,7 +899,7 @@ pub struct MSEncoder {
 
 impl Drop for MSEncoder {
 	fn drop(&mut self) {
-		unsafe { opus_multistream_encoder_destroy(self.ptr) }
+		unsafe { ffi::opus_multistream_encoder_destroy(self.ptr) }
 	}
 }
 
@@ -996,7 +994,7 @@ pub struct MSDecoder {
 
 impl Drop for MSDecoder {
 	fn drop(&mut self) {
-		unsafe { opus_multistream_decoder_destroy(self.ptr) }
+		unsafe { ffi::opus_multistream_decoder_destroy(self.ptr) }
 	}
 }
 
