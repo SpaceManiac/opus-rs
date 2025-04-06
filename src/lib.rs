@@ -178,9 +178,12 @@ macro_rules! ffi {
 	}
 }
 
+// ============================================================================
+// Generic CTLs
+
 macro_rules! ctl {
-	($f:ident, $this:ident, $ctl:path, $($rest:expr),*) => {
-		match unsafe { ffi::$f($this.ptr, $ctl, $($rest),*) } {
+	($f:ident, $this:ident, $ctl:path $(, $rest:expr)*) => {
+		match unsafe { ffi::$f($this.ptr, $ctl $(, $rest)*) } {
 			code if code < 0 => return Err(Error::from_code(
 				concat!(stringify!($f), "(", stringify!($ctl), ")"),
 				code,
@@ -190,14 +193,45 @@ macro_rules! ctl {
 	}
 }
 
-// ============================================================================
-// Encoder
+macro_rules! generic_ctls {
+	($t:ty, $fn:ident) => {
+		/// Generic CTLs. See [Opus docs](https://opus-codec.org/docs/opus_api-1.5/group__opus__genericctls.html).
+		impl $t {
+			/// Reset the codec state to be equivalent to a freshly initialized state.
+			pub fn reset_state(&mut self) -> Result<()> {
+				ctl!($fn, self, ffi::OPUS_RESET_STATE);
+				Ok(())
+			}
 
-macro_rules! enc_ctl {
-	($this:ident, $ctl:path $(, $rest:expr)*) => {
-		ctl!(opus_encoder_ctl, $this, $ctl, $($rest),*)
+			/// Get the final range of the codec's entropy coder.
+			pub fn get_final_range(&mut self) -> Result<u32> {
+				let mut value: u32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_FINAL_RANGE_REQUEST, &mut value);
+				Ok(value)
+			}
+
+			/// Get the encoder's configured bandpass.
+			pub fn get_bandwidth(&mut self) -> Result<Bandwidth> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_BANDWIDTH_REQUEST, &mut value);
+				Bandwidth::decode(value, concat!(stringify!($fn), "(OPUS_GET_BANDWIDTH)"))
+			}
+
+			/// Get the samping rate the encoder was intialized with.
+			pub fn get_sample_rate(&mut self) -> Result<u32> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_SAMPLE_RATE_REQUEST, &mut value);
+				Ok(value as u32)
+			}
+
+			// TODO(#5): OPUS_SET/GET_PHASE_INVERSION_DISABLED (since Opus 1.3)
+			// TODO(#5): OPUS_GET_IN_DTX (since Opus 1.3)
+		}
 	}
 }
+
+// ============================================================================
+// Encoder
 
 /// An Opus encoder with associated state.
 #[derive(Debug)]
@@ -287,178 +321,160 @@ impl Encoder {
 
 	// ------------
 	// Generic CTLs
+}
 
-	/// Reset the codec state to be equivalent to a freshly initialized state.
-	pub fn reset_state(&mut self) -> Result<()> {
-		enc_ctl!(self, ffi::OPUS_RESET_STATE);
-		Ok(())
-	}
+macro_rules! encoder_ctls {
+	($t:ty, $fn:ident) => {
+		/// Encoder CTLs. See [Opus docs](https://opus-codec.org/docs/opus_api-1.5/group__opus__encoderctls.html).
+		impl $t {
+			/// Set the encoder's bitrate.
+			pub fn set_bitrate(&mut self, value: Bitrate) -> Result<()> {
+				ctl!($fn, self, ffi::OPUS_SET_BITRATE_REQUEST, value.raw());
+				Ok(())
+			}
 
-	/// Get the final range of the codec's entropy coder.
-	pub fn get_final_range(&mut self) -> Result<u32> {
-		let mut value: u32 = 0;
-		enc_ctl!(self, ffi::OPUS_GET_FINAL_RANGE_REQUEST, &mut value);
-		Ok(value)
-	}
+			/// Get the encoder's bitrate.
+			pub fn get_bitrate(&mut self) -> Result<Bitrate> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_BITRATE_REQUEST, &mut value);
+				Bitrate::from_raw(value)
+			}
 
-	/// Get the encoder's configured bandpass.
-	pub fn get_bandwidth(&mut self) -> Result<Bandwidth> {
-		let mut value: i32 = 0;
-		enc_ctl!(self, ffi::OPUS_GET_BANDWIDTH_REQUEST, &mut value);
-		Bandwidth::decode(value, "opus_encoder_ctl(OPUS_GET_BANDWIDTH)")
-	}
+			/// Enable or disable variable bitrate.
+			pub fn set_vbr(&mut self, vbr: bool) -> Result<()> {
+				let value: i32 = if vbr { 1 } else { 0 };
+				ctl!($fn, self, ffi::OPUS_SET_VBR_REQUEST, value);
+				Ok(())
+			}
 
-	/// Get the samping rate the encoder was intialized with.
-	pub fn get_sample_rate(&mut self) -> Result<u32> {
-		let mut value: i32 = 0;
-		enc_ctl!(self, ffi::OPUS_GET_SAMPLE_RATE_REQUEST, &mut value);
-		Ok(value as u32)
-	}
+			/// Determine if variable bitrate is enabled.
+			pub fn get_vbr(&mut self) -> Result<bool> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_VBR_REQUEST, &mut value);
+				Ok(value != 0)
+			}
 
-	// ------------
-	// Encoder CTLs
+			/// Enable or disable constrained VBR.
+			pub fn set_vbr_constraint(&mut self, vbr: bool) -> Result<()> {
+				let value: i32 = if vbr { 1 } else { 0 };
+				ctl!($fn, self, ffi::OPUS_SET_VBR_CONSTRAINT_REQUEST, value);
+				Ok(())
+			}
 
-	/// Set the encoder's bitrate.
-	pub fn set_bitrate(&mut self, value: Bitrate) -> Result<()> {
-		enc_ctl!(self, ffi::OPUS_SET_BITRATE_REQUEST, value.raw());
-		Ok(())
-	}
+			/// Determine if constrained VBR is enabled.
+			pub fn get_vbr_constraint(&mut self) -> Result<bool> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_VBR_CONSTRAINT_REQUEST, &mut value);
+				Ok(value != 0)
+			}
 
-	/// Get the encoder's bitrate.
-	pub fn get_bitrate(&mut self) -> Result<Bitrate> {
-		let mut value: i32 = 0;
-		enc_ctl!(self, ffi::OPUS_GET_BITRATE_REQUEST, &mut value);
-		Bitrate::from_raw(value)
-	}
+			/// Configures the encoder's use of inband forward error correction (FEC).
+			pub fn set_inband_fec(&mut self, value: bool) -> Result<()> {
+				let value: i32 = if value { 1 } else { 0 };
+				ctl!($fn, self, ffi::OPUS_SET_INBAND_FEC_REQUEST, value);
+				Ok(())
+			}
 
-	/// Enable or disable variable bitrate.
-	pub fn set_vbr(&mut self, vbr: bool) -> Result<()> {
-		let value: i32 = if vbr { 1 } else { 0 };
-		enc_ctl!(self, ffi::OPUS_SET_VBR_REQUEST, value);
-		Ok(())
-	}
+			/// Gets encoder's configured use of inband forward error correction.
+			pub fn get_inband_fec(&mut self) -> Result<bool> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_INBAND_FEC_REQUEST, &mut value);
+				Ok(value != 0)
+			}
 
-	/// Determine if variable bitrate is enabled.
-	pub fn get_vbr(&mut self) -> Result<bool> {
-		let mut value: i32 = 0;
-		enc_ctl!(self, ffi::OPUS_GET_VBR_REQUEST, &mut value);
-		Ok(value != 0)
-	}
+			/// Configures the encoder's use of discontinuous transmission (DTX).
+			pub fn set_dtx(&mut self, value: bool) -> Result<()> {
+				let value: i32 = if value { 1 } else { 0 };
+				ctl!($fn, self, ffi::OPUS_SET_DTX_REQUEST, value);
+				Ok(())
+			}
 
-	/// Enable or disable constrained VBR.
-	pub fn set_vbr_constraint(&mut self, vbr: bool) -> Result<()> {
-		let value: i32 = if vbr { 1 } else { 0 };
-		enc_ctl!(self, ffi::OPUS_SET_VBR_CONSTRAINT_REQUEST, value);
-		Ok(())
-	}
+			/// Gets encoder's configured use of discontinuous transmission (DTX).
+			pub fn get_dtx(&mut self) -> Result<bool> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_DTX_REQUEST, &mut value);
+				Ok(value != 0)
+			}
 
-	/// Determine if constrained VBR is enabled.
-	pub fn get_vbr_constraint(&mut self) -> Result<bool> {
-		let mut value: i32 = 0;
-		enc_ctl!(self, ffi::OPUS_GET_VBR_CONSTRAINT_REQUEST, &mut value);
-		Ok(value != 0)
-	}
+			/// Configures the encoder's computational complexity.
+			pub fn set_complexity(&mut self, value: i32) -> Result<()> {
+				ctl!($fn, self, ffi::OPUS_SET_COMPLEXITY_REQUEST, value);
+				Ok(())
+			}
 
-	/// Configures the encoder's use of inband forward error correction (FEC).
-	pub fn set_inband_fec(&mut self, value: bool) -> Result<()> {
-		let value: i32 = if value { 1 } else { 0 };
-		enc_ctl!(self, ffi::OPUS_SET_INBAND_FEC_REQUEST, value);
-		Ok(())
-	}
+			/// Gets the encoder's complexity configuration.
+			pub fn get_complexity(&mut self) -> Result<i32> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_COMPLEXITY_REQUEST, &mut value);
+				Ok(value)
+			}
 
-	/// Gets encoder's configured use of inband forward error correction.
-	pub fn get_inband_fec(&mut self) -> Result<bool> {
-		let mut value: i32 = 0;
-		enc_ctl!(self, ffi::OPUS_GET_INBAND_FEC_REQUEST, &mut value);
-		Ok(value != 0)
-	}
+			/// Sets the encoder's expected packet loss percentage.
+			pub fn set_packet_loss_perc(&mut self, value: i32) -> Result<()> {
+				ctl!($fn, self, ffi::OPUS_SET_PACKET_LOSS_PERC_REQUEST, value);
+				Ok(())
+			}
 
-	/// Configures the encoder's use of discontinuous transmission (DTX).
-	pub fn set_dtx(&mut self, value: bool) -> Result<()> {
-		let value: i32 = if value { 1 } else { 0 };
-		enc_ctl!(self, ffi::OPUS_SET_DTX_REQUEST, value);
-		Ok(())
-	}
+			/// Gets the encoder's expected packet loss percentage.
+			pub fn get_packet_loss_perc(&mut self) -> Result<i32> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_PACKET_LOSS_PERC_REQUEST, &mut value);
+				Ok(value)
+			}
 
-	/// Gets encoder's configured use of discontinuous transmission (DTX).
-	pub fn get_dtx(&mut self) -> Result<bool> {
-		let mut value: i32 = 0;
-		enc_ctl!(self, ffi::OPUS_GET_DTX_REQUEST, &mut value);
-		Ok(value != 0)
-	}
+			/// Gets the total samples of delay added by the entire codec.
+			pub fn get_lookahead(&mut self) -> Result<i32> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_LOOKAHEAD_REQUEST, &mut value);
+				Ok(value)
+			}
 
-	/// Configures the encoder's computational complexity.
-	pub fn set_complexity(&mut self, value: i32) -> Result<()> {
-		enc_ctl!(self, ffi::OPUS_SET_COMPLEXITY_REQUEST, value);
-		Ok(())
-	}
+			/// Configures mono/stereo forcing in the encoder.
+			///
+			/// This can force the encoder to produce packets encoded as either mono or
+			/// stereo, regardless of the format of the input audio. This is useful
+			/// when the caller knows that the input signal is currently a mono source
+			/// embedded in a stereo stream.
+			pub fn set_force_channels(&mut self, value: Option<Channels>) -> Result<()> {
+				let value = match value {
+					None => ffi::OPUS_AUTO,
+					Some(Channels::Mono) => 1,
+					Some(Channels::Stereo) => 2,
+				};
+				ctl!($fn, self, ffi::OPUS_SET_FORCE_CHANNELS_REQUEST, value);
+				Ok(())
+			}
 
-	/// Gets the encoder's complexity configuration.
-	pub fn get_complexity(&mut self) -> Result<i32> {
-		let mut value: i32 = 0;
-		enc_ctl!(self, ffi::OPUS_GET_COMPLEXITY_REQUEST, &mut value);
-		Ok(value)
-	}
+			/// Gets the encoder's forced channel configuration.
+			pub fn get_force_channels(&mut self) -> Result<Option<Channels>> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_FORCE_CHANNELS_REQUEST, &mut value);
+				match value {
+					ffi::OPUS_AUTO => Ok(None),
+					1 => Ok(Some(Channels::Mono)),
+					2 => Ok(Some(Channels::Stereo)),
+					_ => Err(Error::bad_arg(concat!(stringify!($fn), "(OPUS_GET_FORCE_CHANNELS)"))),
+				}
+			}
 
-	/// Sets the encoder's expected packet loss percentage.
-	pub fn set_packet_loss_perc(&mut self, value: i32) -> Result<()> {
-		enc_ctl!(self, ffi::OPUS_SET_PACKET_LOSS_PERC_REQUEST, value);
-		Ok(())
-	}
-
-	/// Gets the encoder's expected packet loss percentage.
-	pub fn get_packet_loss_perc(&mut self) -> Result<i32> {
-		let mut value: i32 = 0;
-		enc_ctl!(self, ffi::OPUS_GET_PACKET_LOSS_PERC_REQUEST, &mut value);
-		Ok(value)
-	}
-
-	/// Gets the total samples of delay added by the entire codec.
-	pub fn get_lookahead(&mut self) -> Result<i32> {
-		let mut value: i32 = 0;
-		enc_ctl!(self, ffi::OPUS_GET_LOOKAHEAD_REQUEST, &mut value);
-		Ok(value)
-	}
-
-	/// Configures mono/stereo forcing in the encoder.
-	///
-	/// This can force the encoder to produce packets encoded as either mono or
-	/// stereo, regardless of the format of the input audio. This is useful
-	/// when the caller knows that the input signal is currently a mono source
-	/// embedded in a stereo stream.
-	pub fn set_force_channels(&mut self, value: Option<Channels>) -> Result<()> {
-		let value = match value {
-			None => ffi::OPUS_AUTO,
-			Some(Channels::Mono) => 1,
-			Some(Channels::Stereo) => 2,
-		};
-		enc_ctl!(self, ffi::OPUS_SET_FORCE_CHANNELS_REQUEST, value);
-		Ok(())
-	}
-
-	/// Gets the encoder's forced channel configuration.
-	pub fn get_force_channels(&mut self) -> Result<Option<Channels>> {
-		let mut value: i32 = 0;
-		enc_ctl!(self, ffi::OPUS_GET_FORCE_CHANNELS_REQUEST, &mut value);
-		match value {
-			ffi::OPUS_AUTO => Ok(None),
-			1 => Ok(Some(Channels::Mono)),
-			2 => Ok(Some(Channels::Stereo)),
-			_ => Err(Error::bad_arg("opus_encoder_ctl(OPUS_GET_FORCE_CHANNELS)")),
+			// TODO(#5): OPUS_SET/GET_MAX_BANDWIDTH
+			// TODO(#5): OPUS_SET_BANDWIDTH
+			// TODO(#5): OPUS_SET/GET_SIGNAL
+			// TODO(#5): OPUS_SET/GET_APPLICATION
+			// TODO(#5): OPUS_SET/GET_LSB_DEPTH
+			// TODO(#5): OPUS_SET/GET_EXPERT_FRAME_DURATION
+			// TODO(#5): OPUS_SET/GET_PREDICTION_DISABLED
+			// TODO(#5): OPUS_SET/GET_DRED_DURATION (since Opus 1.5)
+			// TODO(#5): OPUS_SET_DNN_BLOB (since Opus 1.5)
 		}
 	}
-
-	// TODO: Encoder-specific CTLs
 }
+
+generic_ctls!(Encoder, opus_encoder_ctl);
+encoder_ctls!(Encoder, opus_encoder_ctl);
 
 // ============================================================================
 // Decoder
-
-macro_rules! dec_ctl {
-	($this:ident, $ctl:path $(, $rest:expr)*) => {
-		ctl!(opus_decoder_ctl, $this, $ctl, $($rest),*)
-	}
-}
 
 /// An Opus decoder with associated state.
 #[derive(Debug)]
@@ -540,80 +556,57 @@ impl Decoder {
 		let len = ffi!(opus_decoder_get_nb_samples, self.ptr, packet.as_ptr(), packet.len() as i32);
 		Ok(len as usize)
 	}
+}
 
-	// ------------
-	// Generic CTLs
+macro_rules! decoder_ctls {
+	($t:ty, $fn:ident) => {
+		/// Decoder CTLs. See [Opus docs](https://opus-codec.org/docs/opus_api-1.5/group__opus__decoderctls.html).
+		impl $t {
+			/// Configures decoder gain adjustment.
+			///
+			/// Scales the decoded output by a factor specified in Q8 dB units. This has
+			/// a maximum range of -32768 to 32768 inclusive, and returns `BadArg`
+			/// otherwise. The default is zero indicating no adjustment. This setting
+			/// survives decoder reset.
+			///
+			/// `gain = pow(10, x / (20.0 * 256))`
+			pub fn set_gain(&mut self, gain: i32) -> Result<()> {
+				ctl!($fn, self, ffi::OPUS_SET_GAIN_REQUEST, gain);
+				Ok(())
+			}
 
-	/// Reset the codec state to be equivalent to a freshly initialized state.
-	pub fn reset_state(&mut self) -> Result<()> {
-		dec_ctl!(self, ffi::OPUS_RESET_STATE);
-		Ok(())
-	}
+			/// Gets the decoder's configured gain adjustment.
+			pub fn get_gain(&mut self) -> Result<i32> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_GAIN_REQUEST, &mut value);
+				Ok(value)
+			}
 
-	/// Get the final range of the codec's entropy coder.
-	pub fn get_final_range(&mut self) -> Result<u32> {
-		let mut value: u32 = 0;
-		dec_ctl!(self, ffi::OPUS_GET_FINAL_RANGE_REQUEST, &mut value);
-		Ok(value)
-	}
+			/// Gets the duration (in samples) of the last packet successfully decoded
+			/// or concealed.
+			pub fn get_last_packet_duration(&mut self) -> Result<u32> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_LAST_PACKET_DURATION_REQUEST, &mut value);
+				Ok(value as u32)
+			}
 
-	/// Get the decoder's last bandpass.
-	pub fn get_bandwidth(&mut self) -> Result<Bandwidth> {
-		let mut value: i32 = 0;
-		dec_ctl!(self, ffi::OPUS_GET_BANDWIDTH_REQUEST, &mut value);
-		Bandwidth::decode(value, "opus_decoder_ctl(OPUS_GET_BANDWIDTH)")
-	}
-
-	/// Get the samping rate the decoder was intialized with.
-	pub fn get_sample_rate(&mut self) -> Result<u32> {
-		let mut value: i32 = 0;
-		dec_ctl!(self, ffi::OPUS_GET_SAMPLE_RATE_REQUEST, &mut value);
-		Ok(value as u32)
-	}
-
-	// ------------
-	// Decoder CTLs
-
-	/// Configures decoder gain adjustment.
-	///
-	/// Scales the decoded output by a factor specified in Q8 dB units. This has
-	/// a maximum range of -32768 to 32768 inclusive, and returns `BadArg`
-	/// otherwise. The default is zero indicating no adjustment. This setting
-	/// survives decoder reset.
-	///
-	/// `gain = pow(10, x / (20.0 * 256))`
-	pub fn set_gain(&mut self, gain: i32) -> Result<()> {
-		dec_ctl!(self, ffi::OPUS_SET_GAIN_REQUEST, gain);
-		Ok(())
-	}
-
-	/// Gets the decoder's configured gain adjustment.
-	pub fn get_gain(&mut self) -> Result<i32> {
-		let mut value: i32 = 0;
-		dec_ctl!(self, ffi::OPUS_GET_GAIN_REQUEST, &mut value);
-		Ok(value)
-	}
-
-	/// Gets the duration (in samples) of the last packet successfully decoded
-	/// or concealed.
-	pub fn get_last_packet_duration(&mut self) -> Result<u32> {
-		let mut value: i32 = 0;
-		dec_ctl!(self, ffi::OPUS_GET_LAST_PACKET_DURATION_REQUEST, &mut value);
-		Ok(value as u32)
-	}
-
-	/// Gets the pitch of the last decoded frame, if available.
-	///
-	/// This can be used for any post-processing algorithm requiring the use of
-	/// pitch, e.g. time stretching/shortening. If the last frame was not
-	/// voiced, or if the pitch was not coded in the frame, then zero is
-	/// returned.
-	pub fn get_pitch(&mut self) -> Result<i32> {
-		let mut value: i32 = 0;
-		dec_ctl!(self, ffi::OPUS_GET_PITCH_REQUEST, &mut value);
-		Ok(value)
+			/// Gets the pitch of the last decoded frame, if available.
+			///
+			/// This can be used for any post-processing algorithm requiring the use of
+			/// pitch, e.g. time stretching/shortening. If the last frame was not
+			/// voiced, or if the pitch was not coded in the frame, then zero is
+			/// returned.
+			pub fn get_pitch(&mut self) -> Result<i32> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_PITCH_REQUEST, &mut value);
+				Ok(value)
+			}
+		}
 	}
 }
+
+generic_ctls!(Decoder, opus_decoder_ctl);
+decoder_ctls!(Decoder, opus_decoder_ctl);
 
 // ============================================================================
 // Packet Analysis
@@ -960,11 +953,10 @@ impl MSEncoder {
 		output.truncate(result);
 		Ok(output)
 	}
-
-	// TODO: Generic CTLs
-	// TODO: Encoder CTLs
 }
 
+generic_ctls!(MSEncoder, opus_multistream_encoder_ctl);
+encoder_ctls!(MSEncoder, opus_multistream_encoder_ctl);
 
 /// Decode packets into many Opus streams, up to 255.
 ///
@@ -1047,10 +1039,10 @@ impl MSDecoder {
 		);
 		Ok(len as usize)
 	}
-
-	// TODO: Generic CTLs
-	// TODO: Decoder CTLs
 }
+
+generic_ctls!(MSDecoder, opus_multistream_decoder_ctl);
+decoder_ctls!(MSDecoder, opus_multistream_decoder_ctl);
 
 // ============================================================================
 // Error Handling
