@@ -206,6 +206,24 @@ pub struct Encoder {
 	channels: Channels,
 }
 
+impl Drop for Encoder {
+	fn drop(&mut self) {
+		unsafe { ffi::opus_encoder_destroy(self.ptr) }
+	}
+}
+
+// "A single codec state may only be accessed from a single thread at
+// a time and any required locking must be performed by the caller. Separate
+// streams must be decoded with separate decoder states and can be decoded
+// in parallel unless the library was compiled with NONTHREADSAFE_PSEUDOSTACK
+// defined."
+//
+// In other words, opus states may be moved between threads at will. A special
+// compilation mode intended for embedded platforms forbids multithreaded use
+// of the library as a whole rather than on a per-state basis, but the opus-sys
+// crate does not use this mode.
+unsafe impl Send for Encoder {}
+
 impl Encoder {
 	/// Create and initialize an encoder.
 	pub fn new(sample_rate: u32, channels: Channels, mode: Application) -> Result<Encoder> {
@@ -433,24 +451,6 @@ impl Encoder {
 	// TODO: Encoder-specific CTLs
 }
 
-impl Drop for Encoder {
-	fn drop(&mut self) {
-		unsafe { ffi::opus_encoder_destroy(self.ptr) }
-	}
-}
-
-// "A single codec state may only be accessed from a single thread at
-// a time and any required locking must be performed by the caller. Separate
-// streams must be decoded with separate decoder states and can be decoded
-// in parallel unless the library was compiled with NONTHREADSAFE_PSEUDOSTACK
-// defined."
-//
-// In other words, opus states may be moved between threads at will. A special
-// compilation mode intended for embedded platforms forbids multithreaded use
-// of the library as a whole rather than on a per-state basis, but the opus-sys
-// crate does not use this mode.
-unsafe impl Send for Encoder {}
-
 // ============================================================================
 // Decoder
 
@@ -466,6 +466,15 @@ pub struct Decoder {
 	ptr: *mut ffi::OpusDecoder,
 	channels: Channels,
 }
+
+impl Drop for Decoder {
+	fn drop(&mut self) {
+		unsafe { ffi::opus_decoder_destroy(self.ptr) }
+	}
+}
+
+// See `unsafe impl Send for Encoder`.
+unsafe impl Send for Decoder {}
 
 impl Decoder {
 	/// Create and initialize a decoder.
@@ -605,15 +614,6 @@ impl Decoder {
 		Ok(value)
 	}
 }
-
-impl Drop for Decoder {
-	fn drop(&mut self) {
-		unsafe { ffi::opus_decoder_destroy(self.ptr) }
-	}
-}
-
-// See `unsafe impl Send for Encoder`.
-unsafe impl Send for Decoder {}
 
 // ============================================================================
 // Packet Analysis
@@ -763,6 +763,15 @@ pub struct Repacketizer {
 	ptr: *mut ffi::OpusRepacketizer,
 }
 
+impl Drop for Repacketizer {
+	fn drop(&mut self) {
+		unsafe { ffi::opus_repacketizer_destroy(self.ptr) }
+	}
+}
+
+// See `unsafe impl Send for Encoder`.
+unsafe impl Send for Repacketizer {}
+
 impl Repacketizer {
 	/// Create and initialize a repacketizer.
 	pub fn new() -> Result<Repacketizer> {
@@ -792,15 +801,6 @@ impl Repacketizer {
 		RepacketizerState { ptr: self.ptr, phantom: PhantomData }
 	}
 }
-
-impl Drop for Repacketizer {
-	fn drop(&mut self) {
-		unsafe { ffi::opus_repacketizer_destroy(self.ptr) }
-	}
-}
-
-// See `unsafe impl Send for Encoder`.
-unsafe impl Send for Repacketizer {}
 
 // To understand why these lifetime bounds are needed, imagine that the
 // repacketizer keeps an internal Vec<&'buf [u8]>, which is added to by cat()
@@ -872,7 +872,7 @@ impl<'rp, 'buf> RepacketizerState<'rp, 'buf> {
 
 /// Combine individual Opus streams in a single packet, up to 255 channels.
 ///
-/// See: https://opus-codec.org/docs/opus_api-1.5/group__opus__multistream.html
+/// See [Opus docs](https://opus-codec.org/docs/opus_api-1.5/group__opus__multistream.html).
 #[derive(Debug)]
 pub struct MSEncoder {
 	ptr: *mut ffi::OpusMSEncoder,
@@ -968,7 +968,7 @@ impl MSEncoder {
 
 /// Decode packets into many Opus streams, up to 255.
 ///
-/// See: https://opus-codec.org/docs/opus_api-1.5/group__opus__multistream.html
+/// See [Opus docs](https://opus-codec.org/docs/opus_api-1.5/group__opus__multistream.html).
 #[derive(Debug)]
 pub struct MSDecoder {
 	ptr: *mut ffi::OpusMSDecoder,
