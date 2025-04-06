@@ -789,7 +789,7 @@ impl Repacketizer {
 		unsafe {
 			ffi::opus_repacketizer_init(self.ptr);
 		}
-		RepacketizerState { rp: self, phantom: PhantomData }
+		RepacketizerState { ptr: self.ptr, phantom: PhantomData }
 	}
 }
 
@@ -811,14 +811,17 @@ unsafe impl Send for Repacketizer {}
 /// An in-progress repacketization.
 #[derive(Debug)]
 pub struct RepacketizerState<'rp, 'buf> {
-	rp: &'rp mut Repacketizer,
-	phantom: PhantomData<&'buf [u8]>,
+	ptr: *mut ffi::OpusRepacketizer,
+	phantom: PhantomData<(&'rp mut Repacketizer, &'buf [u8])>,
 }
+
+// See `unsafe impl Send for Encoder`.
+unsafe impl<'rp, 'buf> Send for RepacketizerState<'rp, 'buf> {}
 
 impl<'rp, 'buf> RepacketizerState<'rp, 'buf> {
 	/// Add a packet to the current repacketizer state.
 	pub fn cat(&mut self, packet: &'buf [u8]) -> Result<()> {
-		ffi!(opus_repacketizer_cat, self.rp.ptr, packet.as_ptr(), len(packet));
+		ffi!(opus_repacketizer_cat, self.ptr, packet.as_ptr(), len(packet));
 		Ok(())
 	}
 
@@ -836,14 +839,14 @@ impl<'rp, 'buf> RepacketizerState<'rp, 'buf> {
 	/// Get the total number of frames contained in packet data submitted so
 	/// far via `cat`.
 	pub fn get_nb_frames(&mut self) -> usize {
-		unsafe { ffi::opus_repacketizer_get_nb_frames(self.rp.ptr) as usize }
+		unsafe { ffi::opus_repacketizer_get_nb_frames(self.ptr) as usize }
 	}
 
 	/// Construct a new packet from data previously submitted via `cat`.
 	///
 	/// All previously submitted frames are used.
 	pub fn out(&mut self, buffer: &mut [u8]) -> Result<usize> {
-		let result = ffi!(opus_repacketizer_out, self.rp.ptr, buffer.as_mut_ptr(), len(buffer));
+		let result = ffi!(opus_repacketizer_out, self.ptr, buffer.as_mut_ptr(), len(buffer));
 		Ok(result as usize)
 	}
 
@@ -854,7 +857,7 @@ impl<'rp, 'buf> RepacketizerState<'rp, 'buf> {
 	pub fn out_range(&mut self, begin: usize, end: usize, buffer: &mut [u8]) -> Result<usize> {
 		let result = ffi!(
 			opus_repacketizer_out_range,
-			self.rp.ptr,
+			self.ptr,
 			check_len(begin),
 			check_len(end),
 			buffer.as_mut_ptr(),
