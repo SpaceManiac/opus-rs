@@ -13,5 +13,7 @@ categories = ["api-bindings", "encoding", "compression",
 repository = "https://github.com/SpaceManiac/opus-rs"
 documentation = "https://docs.rs/opus/0.3.0/opus"
 
+edition = "2015"
+
 [dependencies]
 audiopus_sys = "0.2.0"
