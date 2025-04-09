@@ -36,6 +36,17 @@ pub enum Application {
 	LowDelay = ffi::OPUS_APPLICATION_RESTRICTED_LOWDELAY,
 }
 
+impl Application {
+	fn from_raw(raw: i32, what: &'static str) -> Result<Application> {
+		match raw {
+			ffi::OPUS_APPLICATION_VOIP => Ok(Application::Voip),
+			ffi::OPUS_APPLICATION_AUDIO => Ok(Application::Audio),
+			ffi::OPUS_APPLICATION_RESTRICTED_LOWDELAY => Ok(Application::LowDelay),
+			_ => Err(Error::bad_arg(what))
+		}
+	}
+}
+
 /// The available channel setings.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum Channels {
@@ -81,6 +92,10 @@ impl Bandwidth {
 			Some(bandwidth) => Ok(bandwidth),
 			None => Err(Error::bad_arg(what)),
 		}
+	}
+
+	fn raw(self) -> i32 {
+		self as i32
 	}
 }
 
@@ -154,6 +169,33 @@ impl Bitrate {
 			Bitrate::Max => ffi::OPUS_BITRATE_MAX,
 			Bitrate::Bits(raw) => raw,
 		}
+	}
+}
+
+/// Possible signal types. Hints for the encoder's mode selection.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[repr(i32)]
+pub enum Signal {
+	/// Auto/default setting.
+	Auto = ffi::OPUS_AUTO,
+	/// Bias thresholds towards choosing LPC or Hybrid modes.
+	Voice = ffi::OPUS_SIGNAL_VOICE,
+	/// Bias thresholds towards choosing MDCT modes.
+	Music = ffi::OPUS_SIGNAL_MUSIC,
+}
+
+impl Signal {
+	fn from_raw(raw: i32, what: &'static str) -> Result<Signal> {
+		match raw {
+			ffi::OPUS_AUTO => Ok(Signal::Auto),
+			ffi::OPUS_SIGNAL_VOICE => Ok(Signal::Voice),
+			ffi::OPUS_SIGNAL_MUSIC => Ok(Signal::Music),
+			_ => Err(Error::bad_arg(what)),
+		}
+	}
+
+	fn raw(self) -> i32 {
+		self as i32
 	}
 }
 
@@ -401,7 +443,7 @@ macro_rules! encoder_ctls {
 			/// when the caller knows that the input signal is currently a mono source
 			/// embedded in a stereo stream.
 			pub fn set_force_channels(&mut self, value: Option<Channels>) -> Result<()> {
-				let value = match value {
+				let value: i32 = match value {
 					None => ffi::OPUS_AUTO,
 					Some(Channels::Mono) => 1,
 					Some(Channels::Stereo) => 2,
@@ -422,10 +464,54 @@ macro_rules! encoder_ctls {
 				}
 			}
 
-			// TODO(#5): OPUS_SET/GET_MAX_BANDWIDTH
-			// TODO(#5): OPUS_SET_BANDWIDTH
-			// TODO(#5): OPUS_SET/GET_SIGNAL
-			// TODO(#5): OPUS_SET/GET_APPLICATION
+			/// Configure the maximum bandpass that the encoder will select automatically.
+			pub fn set_max_bandwidth(&mut self, bandwidth: Bandwidth) -> Result<()> {
+				let value: i32 = bandwidth.raw();
+				ctl!($fn, self, ffi::OPUS_SET_MAX_BANDWIDTH_REQUEST, value);
+				Ok(())
+			}
+
+			/// Get the encoder's configured maximum allowed bandpass.
+			pub fn get_max_bandwidth(&mut self) -> Result<Bandwidth> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_MAX_BANDWIDTH_REQUEST, &mut value);
+				Bandwidth::decode(value, concat!(stringify!($fn), "(OPUS_GET_MAX_BANDWIDTH)"))
+			}
+
+			/// Set the encoder's bandpass to a specific value.
+			pub fn set_bandwidth(&mut self, bandwidth: Bandwidth) -> Result<()> {
+				let value: i32 = bandwidth.raw();
+				ctl!($fn, self, ffi::OPUS_SET_BANDWIDTH_REQUEST, value);
+				Ok(())
+			}
+
+			/// Configure the type of signal being encoded.
+			pub fn set_signal(&mut self, signal: Signal) -> Result<()> {
+				let value: i32 = signal.raw();
+				ctl!($fn, self, ffi::OPUS_SET_SIGNAL_REQUEST, value);
+				Ok(())
+			}
+
+			/// Gets the encoder's configured signal type.
+			pub fn get_signal(&mut self) -> Result<Signal> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_SIGNAL_REQUEST, &mut value);
+				Signal::from_raw(value, concat!(stringify!($fn), "(OPUS_GET_SIGNAL)"))
+			}
+
+			/// Configure the encoder's intended application.
+			pub fn set_application(&mut self, application: Application) -> Result<()> {
+				let value: i32 = application as i32;
+				ctl!($fn, self, ffi::OPUS_SET_APPLICATION_REQUEST, value);
+				Ok(())
+			}
+
+			/// Get the encoder's configured application.
+			pub fn get_application(&mut self) -> Result<Application> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_APPLICATION_REQUEST, &mut value);
+				Application::from_raw(value, concat!(stringify!($fn), "(OPUS_GET_APPLICATION)"))
+			}
 
 			/// Gets the total samples of delay added by the entire codec.
 			pub fn get_lookahead(&mut self) -> Result<i32> {
