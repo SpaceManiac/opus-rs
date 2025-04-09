@@ -16,4 +16,4 @@ documentation = "https://docs.rs/opus/0.3.0/opus"
 edition = "2015"
 
 [dependencies]
-audiopus_sys = "0.2.0"
+opusic-sys = "0.5.1"
