@@ -199,6 +199,54 @@ impl Signal {
 	}
 }
 
+/// Possible frame sizes. Controls encoder's use of variable duration frames.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[repr(i32)]
+pub enum FrameSize {
+	/// Select frame size from the argument (default).
+	Arg = ffi::OPUS_FRAMESIZE_ARG,
+	/// Use 2.5 ms frames.
+	Ms2_5 = ffi::OPUS_FRAMESIZE_2_5_MS,
+	/// Use 5 ms frames.
+	Ms5 = ffi::OPUS_FRAMESIZE_5_MS,
+	/// Use 10 ms frames.
+	Ms10 = ffi::OPUS_FRAMESIZE_10_MS,
+	/// Use 20 ms frames.
+	Ms20 = ffi::OPUS_FRAMESIZE_20_MS,
+	/// Use 40 ms frames.
+	Ms40 = ffi::OPUS_FRAMESIZE_40_MS,
+	/// Use 60 ms frames.
+	Ms60  = ffi::OPUS_FRAMESIZE_60_MS,
+	/// Use 80 ms frames.
+	Ms80  = ffi::OPUS_FRAMESIZE_80_MS,
+	/// Use 100 ms frames.
+	Ms100 = ffi::OPUS_FRAMESIZE_100_MS,
+	/// Use 120 ms frames.
+	Ms120 = ffi::OPUS_FRAMESIZE_120_MS,
+}
+
+impl FrameSize {
+	fn from_raw(raw: i32, what: &'static str) -> Result<FrameSize> {
+		match raw {
+			ffi::OPUS_FRAMESIZE_ARG => Ok(FrameSize::Arg),
+			ffi::OPUS_FRAMESIZE_2_5_MS => Ok(FrameSize::Ms2_5),
+			ffi::OPUS_FRAMESIZE_5_MS => Ok(FrameSize::Ms5),
+			ffi::OPUS_FRAMESIZE_10_MS => Ok(FrameSize::Ms10),
+			ffi::OPUS_FRAMESIZE_20_MS => Ok(FrameSize::Ms20),
+			ffi::OPUS_FRAMESIZE_40_MS => Ok(FrameSize::Ms40),
+			ffi::OPUS_FRAMESIZE_60_MS => Ok(FrameSize::Ms60),
+			ffi::OPUS_FRAMESIZE_80_MS => Ok(FrameSize::Ms80),
+			ffi::OPUS_FRAMESIZE_100_MS => Ok(FrameSize::Ms100),
+			ffi::OPUS_FRAMESIZE_120_MS => Ok(FrameSize::Ms120),
+			_ => Err(Error::bad_arg(what)),
+		}
+	}
+
+	fn raw(self) -> i32 {
+		self as i32
+	}
+}
+
 /// Get the libopus version string.
 ///
 /// Applications may look for the substring "-fixed" in the version string to
@@ -561,9 +609,51 @@ macro_rules! encoder_ctls {
 				Ok(value != 0)
 			}
 
-			// TODO(#5): OPUS_SET/GET_LSB_DEPTH
-			// TODO(#5): OPUS_SET/GET_EXPERT_FRAME_DURATION
-			// TODO(#5): OPUS_SET/GET_PREDICTION_DISABLED
+			/// Configures the depth of signal being encoded.
+			///
+			/// Depth should be between 8 and 24 inclusive.
+			pub fn set_lsb_depth(&mut self, depth: i32) -> Result<()> {
+				ctl!($fn, self, ffi::OPUS_SET_LSB_DEPTH_REQUEST, depth);
+				Ok(())
+			}
+
+			/// Gets the encoder's configured signal depth.
+			pub fn get_lsb_depth(&mut self) -> Result<i32> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_LSB_DEPTH_REQUEST, &mut value);
+				Ok(value)
+			}
+
+			/// Configures the encoder's use of variable duration frames.
+			///
+			/// Do not use this option unless you **really** know what you are doing.
+			pub fn set_expert_frame_duration(&mut self, framesize: FrameSize) -> Result<()> {
+				let value: i32 = framesize.raw();
+				ctl!($fn, self, ffi::OPUS_SET_EXPERT_FRAME_DURATION_REQUEST, value);
+				Ok(())
+			}
+
+			/// Gets the encoder's configured use of variable duration frames.
+			pub fn get_expert_frame_duration(&mut self) -> Result<FrameSize> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_EXPERT_FRAME_DURATION_REQUEST, &mut value);
+				FrameSize::from_raw(value, concat!(stringify!($fn), "(OPUS_GET_EXPERT_FRAME_DURATION)"))
+			}
+
+			/// If set to true, disables almost all use of prediction, making frames almost completely independent.
+			pub fn set_prediction_disabled(&mut self, disabled: bool) -> Result<()> {
+				let value: i32 = if disabled { 1 } else { 0 };
+				ctl!($fn, self, ffi::OPUS_SET_PREDICTION_DISABLED_REQUEST, value);
+				Ok(())
+			}
+
+			/// Gets the encoder's configured prediction status.
+			pub fn get_prediction_disabled(&mut self) -> Result<bool> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_PREDICTION_DISABLED_REQUEST, &mut value);
+				Ok(value != 0)
+			}
+
 			// TODO(#5): OPUS_SET/GET_DRED_DURATION (since Opus 1.5)
 			// TODO(#5): OPUS_SET_DNN_BLOB (since Opus 1.5)
 		}
