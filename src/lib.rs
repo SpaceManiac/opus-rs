@@ -99,6 +99,12 @@ impl Bandwidth {
 	}
 }
 
+impl Default for Bandwidth {
+	fn default() -> Self {
+		Bandwidth::Auto
+	}
+}
+
 /// Possible error codes.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(i32)]
@@ -199,6 +205,12 @@ impl Signal {
 	}
 }
 
+impl Default for Signal {
+	fn default() -> Self {
+		Signal::Auto
+	}
+}
+
 /// Possible frame sizes. Controls encoder's use of variable duration frames.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(i32)]
@@ -244,6 +256,12 @@ impl FrameSize {
 
 	fn raw(self) -> i32 {
 		self as i32
+	}
+}
+
+impl Default for FrameSize {
+	fn default() -> Self {
+		FrameSize::Arg
 	}
 }
 
