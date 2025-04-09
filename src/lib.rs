@@ -222,8 +222,26 @@ macro_rules! generic_ctls {
 				Ok(value as u32)
 			}
 
-			// TODO(#5): OPUS_SET/GET_PHASE_INVERSION_DISABLED (since Opus 1.3)
-			// TODO(#5): OPUS_GET_IN_DTX (since Opus 1.3)
+			/// If set to true, disables the use of phase inversion for intensity stereo.
+			pub fn set_phase_inversion_disabled(&mut self, disabled: bool) -> Result<()> {
+				let value: i32 = if disabled { 1 } else { 0 };
+				ctl!($fn, self, ffi::OPUS_SET_PHASE_INVERSION_DISABLED_REQUEST, value);
+				Ok(())
+			}
+
+			/// Get the encoder's configured phase inversion status.
+			pub fn get_phase_inversion_disabled(&mut self) -> Result<bool> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_PHASE_INVERSION_DISABLED_REQUEST, &mut value);
+				Ok(value != 0)
+			}
+
+			/// Get the DTX state of the encoder.
+			pub fn get_in_dtx(&mut self) -> Result<bool> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_IN_DTX_REQUEST, &mut value);
+				Ok(value != 0)
+			}
 		}
 	};
 }
@@ -316,9 +334,6 @@ impl Encoder {
 		output.truncate(result);
 		Ok(output)
 	}
-
-	// ------------
-	// Generic CTLs
 }
 
 macro_rules! encoder_ctls {
