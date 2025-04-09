@@ -340,6 +340,19 @@ macro_rules! encoder_ctls {
 	($t:ty, $fn:ident) => {
 		/// Encoder CTLs. See [Opus docs](https://opus-codec.org/docs/opus_api-1.5/group__opus__encoderctls.html).
 		impl $t {
+			/// Configures the encoder's computational complexity.
+			pub fn set_complexity(&mut self, value: i32) -> Result<()> {
+				ctl!($fn, self, ffi::OPUS_SET_COMPLEXITY_REQUEST, value);
+				Ok(())
+			}
+
+			/// Gets the encoder's complexity configuration.
+			pub fn get_complexity(&mut self) -> Result<i32> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_COMPLEXITY_REQUEST, &mut value);
+				Ok(value)
+			}
+
 			/// Set the encoder's bitrate.
 			pub fn set_bitrate(&mut self, value: Bitrate) -> Result<()> {
 				ctl!($fn, self, ffi::OPUS_SET_BITRATE_REQUEST, value.raw());
@@ -381,67 +394,6 @@ macro_rules! encoder_ctls {
 				Ok(value != 0)
 			}
 
-			/// Configures the encoder's use of inband forward error correction (FEC).
-			pub fn set_inband_fec(&mut self, value: bool) -> Result<()> {
-				let value: i32 = if value { 1 } else { 0 };
-				ctl!($fn, self, ffi::OPUS_SET_INBAND_FEC_REQUEST, value);
-				Ok(())
-			}
-
-			/// Gets encoder's configured use of inband forward error correction.
-			pub fn get_inband_fec(&mut self) -> Result<bool> {
-				let mut value: i32 = 0;
-				ctl!($fn, self, ffi::OPUS_GET_INBAND_FEC_REQUEST, &mut value);
-				Ok(value != 0)
-			}
-
-			/// Configures the encoder's use of discontinuous transmission (DTX).
-			pub fn set_dtx(&mut self, value: bool) -> Result<()> {
-				let value: i32 = if value { 1 } else { 0 };
-				ctl!($fn, self, ffi::OPUS_SET_DTX_REQUEST, value);
-				Ok(())
-			}
-
-			/// Gets encoder's configured use of discontinuous transmission (DTX).
-			pub fn get_dtx(&mut self) -> Result<bool> {
-				let mut value: i32 = 0;
-				ctl!($fn, self, ffi::OPUS_GET_DTX_REQUEST, &mut value);
-				Ok(value != 0)
-			}
-
-			/// Configures the encoder's computational complexity.
-			pub fn set_complexity(&mut self, value: i32) -> Result<()> {
-				ctl!($fn, self, ffi::OPUS_SET_COMPLEXITY_REQUEST, value);
-				Ok(())
-			}
-
-			/// Gets the encoder's complexity configuration.
-			pub fn get_complexity(&mut self) -> Result<i32> {
-				let mut value: i32 = 0;
-				ctl!($fn, self, ffi::OPUS_GET_COMPLEXITY_REQUEST, &mut value);
-				Ok(value)
-			}
-
-			/// Sets the encoder's expected packet loss percentage.
-			pub fn set_packet_loss_perc(&mut self, value: i32) -> Result<()> {
-				ctl!($fn, self, ffi::OPUS_SET_PACKET_LOSS_PERC_REQUEST, value);
-				Ok(())
-			}
-
-			/// Gets the encoder's expected packet loss percentage.
-			pub fn get_packet_loss_perc(&mut self) -> Result<i32> {
-				let mut value: i32 = 0;
-				ctl!($fn, self, ffi::OPUS_GET_PACKET_LOSS_PERC_REQUEST, &mut value);
-				Ok(value)
-			}
-
-			/// Gets the total samples of delay added by the entire codec.
-			pub fn get_lookahead(&mut self) -> Result<i32> {
-				let mut value: i32 = 0;
-				ctl!($fn, self, ffi::OPUS_GET_LOOKAHEAD_REQUEST, &mut value);
-				Ok(value)
-			}
-
 			/// Configures mono/stereo forcing in the encoder.
 			///
 			/// This can force the encoder to produce packets encoded as either mono or
@@ -474,6 +426,55 @@ macro_rules! encoder_ctls {
 			// TODO(#5): OPUS_SET_BANDWIDTH
 			// TODO(#5): OPUS_SET/GET_SIGNAL
 			// TODO(#5): OPUS_SET/GET_APPLICATION
+
+			/// Gets the total samples of delay added by the entire codec.
+			pub fn get_lookahead(&mut self) -> Result<i32> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_LOOKAHEAD_REQUEST, &mut value);
+				Ok(value)
+			}
+
+			/// Configures the encoder's use of inband forward error correction (FEC).
+			pub fn set_inband_fec(&mut self, value: bool) -> Result<()> {
+				let value: i32 = if value { 1 } else { 0 };
+				ctl!($fn, self, ffi::OPUS_SET_INBAND_FEC_REQUEST, value);
+				Ok(())
+			}
+
+			/// Gets encoder's configured use of inband forward error correction.
+			pub fn get_inband_fec(&mut self) -> Result<bool> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_INBAND_FEC_REQUEST, &mut value);
+				Ok(value != 0)
+			}
+
+			/// Sets the encoder's expected packet loss percentage.
+			pub fn set_packet_loss_perc(&mut self, value: i32) -> Result<()> {
+				ctl!($fn, self, ffi::OPUS_SET_PACKET_LOSS_PERC_REQUEST, value);
+				Ok(())
+			}
+
+			/// Gets the encoder's expected packet loss percentage.
+			pub fn get_packet_loss_perc(&mut self) -> Result<i32> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_PACKET_LOSS_PERC_REQUEST, &mut value);
+				Ok(value)
+			}
+
+			/// Configures the encoder's use of discontinuous transmission (DTX).
+			pub fn set_dtx(&mut self, value: bool) -> Result<()> {
+				let value: i32 = if value { 1 } else { 0 };
+				ctl!($fn, self, ffi::OPUS_SET_DTX_REQUEST, value);
+				Ok(())
+			}
+
+			/// Gets encoder's configured use of discontinuous transmission (DTX).
+			pub fn get_dtx(&mut self) -> Result<bool> {
+				let mut value: i32 = 0;
+				ctl!($fn, self, ffi::OPUS_GET_DTX_REQUEST, &mut value);
+				Ok(value != 0)
+			}
+
 			// TODO(#5): OPUS_SET/GET_LSB_DEPTH
 			// TODO(#5): OPUS_SET/GET_EXPERT_FRAME_DURATION
 			// TODO(#5): OPUS_SET/GET_PREDICTION_DISABLED
