@@ -15,4 +15,4 @@ repository = "https://github.com/SpaceManiac/opus-rs"
 edition = "2015"
 
 [dependencies]
-opusic-sys = "0.5.1"
+opusic-sys = "0.7.3"
