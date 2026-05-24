@@ -15,4 +15,4 @@ repository = "https://github.com/SpaceManiac/opus-rs"
 edition = "2015"
 
 [dependencies]
-audiopus_sys = "0.2.0"
+opusic-sys = "0.5.1"
