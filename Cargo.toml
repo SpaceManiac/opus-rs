@@ -39,7 +39,9 @@ no-simd = ["opusic-sys/no-simd"]
 fixed-point = ["opusic-sys/fixed-point"]
 # bundle "libopus" instead of dynamic linking
 bundled = ["opusic-sys/bundled"]
+# disable runtime CPU feature detection
+no-runtime-feature-detection = ["opusic-sys/no-runtime-feature-detection"]
 
 [dependencies.opusic-sys]
-version = "0.7.3"
+version = "0.7.7"
 default-features = false
